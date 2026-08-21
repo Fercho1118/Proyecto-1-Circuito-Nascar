@@ -8,6 +8,7 @@
  */
 
 #include "config.h"
+#include "track.h"
 
 #include <SDL.h>
 #include <math.h>
@@ -32,18 +33,16 @@ static int num_cars = 1;
 /* ---- Actualizacion ----------------------------------------------------- */
 
 /* Calcula la siguiente ubicacion del auto. Avanza su angulo segun el tiempo
- * transcurrido y de ahi obtiene su posicion en pantalla y su orientacion. */
+ * transcurrido y le pide al modulo de pista la posicion y la orientacion que
+ * corresponden a ese angulo. */
 static void update_car(Car *car, float dt)
 {
-    car->angle += car->speed * dt;
-    if (car->angle > 2.0f * (float)M_PI) car->angle -= 2.0f * (float)M_PI;
+    car->angle = track_wrap(car->angle + car->speed * dt);
 
-    car->x = TRACK_CX + TRACK_RX * cosf(car->angle);
-    car->y = TRACK_CY + TRACK_RY * sinf(car->angle);
-
-    /* La tangente del ovalo da la direccion en la que va el auto. */
-    car->heading = atan2f(TRACK_RY * cosf(car->angle),
-                          -TRACK_RX * sinf(car->angle));
+    Vec2 p = track_point(car->angle, 0.0f);
+    car->x = p.x;
+    car->y = p.y;
+    car->heading = track_heading(car->angle);
 }
 
 /* ---- Dibujo ------------------------------------------------------------ */
@@ -72,9 +71,8 @@ static void fill_rotated_rect(SDL_Renderer *ren, float cx, float cy,
 }
 
 /* Dibuja la pista como un anillo de asfalto. Recorre el ovalo tomando muestras
- * a intervalos regulares y en cada una calcula un punto del borde interno y uno
- * del externo; los tramos entre muestras consecutivas se rellenan con
- * triangulos. */
+ * a intervalos regulares y en cada una pide los dos bordes del asfalto; los
+ * tramos entre muestras consecutivas se rellenan con triangulos. */
 static void draw_track(SDL_Renderer *ren)
 {
     const int SAMPLES = TRACK_SAMPLES;
@@ -84,15 +82,17 @@ static void draw_track(SDL_Renderer *ren)
     int        idx[SAMPLES * 6];
 
     for (int i = 0; i < SAMPLES; ++i) {
-        float t  = 2.0f * (float)M_PI * (float)i / (float)SAMPLES;
-        float ct = cosf(t), st = sinf(t);
+        float t = 2.0f * (float)M_PI * (float)i / (float)SAMPLES;
 
-        /* Los dos bordes del asfalto son elipses concentricas separadas por
-         * medio ancho de pista a cada lado de la linea central. */
-        verts[i * 2 + 0].position.x = TRACK_CX + (TRACK_RX - TRACK_W * 0.5f) * ct;
-        verts[i * 2 + 0].position.y = TRACK_CY + (TRACK_RY - TRACK_W * 0.5f) * st;
-        verts[i * 2 + 1].position.x = TRACK_CX + (TRACK_RX + TRACK_W * 0.5f) * ct;
-        verts[i * 2 + 1].position.y = TRACK_CY + (TRACK_RY + TRACK_W * 0.5f) * st;
+        /* Los bordes se obtienen desplazando la linea central medio ancho de
+         * pista hacia cada lado, siguiendo la normal del ovalo. */
+        Vec2 inner = track_point(t, -TRACK_W * 0.5f);
+        Vec2 outer = track_point(t,  TRACK_W * 0.5f);
+
+        verts[i * 2 + 0].position.x = inner.x;
+        verts[i * 2 + 0].position.y = inner.y;
+        verts[i * 2 + 1].position.x = outer.x;
+        verts[i * 2 + 1].position.y = outer.y;
 
         for (int k = 0; k < 2; ++k) {
             verts[i * 2 + k].color       = asphalt;
