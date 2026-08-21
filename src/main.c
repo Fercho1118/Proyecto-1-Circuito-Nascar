@@ -7,19 +7,11 @@
  * vehiculos y dibuja la pista con los vehiculos encima en cada cuadro.
  */
 
+#include "config.h"
+
 #include <SDL.h>
 #include <math.h>
 #include <stdio.h>
-
-#define WIN_W       1000
-#define WIN_H       650
-#define TRACK_CX    (WIN_W / 2.0f)
-#define TRACK_CY    (WIN_H / 2.0f)
-#define TRACK_RX    340.0f   /* radio horizontal de la linea central */
-#define TRACK_RY    200.0f   /* radio vertical de la linea central   */
-#define TRACK_W     70.0f    /* ancho del asfalto                    */
-#define CAR_LEN     34.0f
-#define CAR_WID     18.0f
 
 /* ---- Elemento a renderizar -------------------------------------------- */
 
@@ -34,7 +26,6 @@ typedef struct {
 
 /* Arreglo con los vehiculos que se actualizan y se dibujan en cada cuadro.
  * num_cars indica cuantas posiciones del arreglo estan en uso. */
-#define MAX_CARS 16
 static Car cars[MAX_CARS];
 static int num_cars = 1;
 
@@ -86,7 +77,7 @@ static void fill_rotated_rect(SDL_Renderer *ren, float cx, float cy,
  * triangulos. */
 static void draw_track(SDL_Renderer *ren)
 {
-    const int SAMPLES = 180;
+    const int SAMPLES = TRACK_SAMPLES;
     const SDL_Color asphalt = { 48, 48, 54, 255 };
 
     SDL_Vertex verts[SAMPLES * 2];
@@ -189,7 +180,7 @@ int main(void)
         Uint64 now = SDL_GetPerformanceCounter();
         float dt = (float)((double)(now - prev) / freq);
         prev = now;
-        if (dt > 0.05f) dt = 0.05f;
+        if (dt > MAX_DT) dt = MAX_DT;
 
         for (int i = 0; i < num_cars; ++i)
             update_car(&cars[i], dt);
