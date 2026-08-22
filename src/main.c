@@ -8,42 +8,12 @@
  */
 
 #include "config.h"
+#include "car.h"
 #include "track.h"
 
 #include <SDL.h>
 #include <math.h>
 #include <stdio.h>
-
-/* ---- Elemento a renderizar -------------------------------------------- */
-
-/* Un vehiculo. Su posicion real es el angulo sobre el ovalo; x, y y heading
- * se derivan de ese angulo y solo sirven para dibujarlo. */
-typedef struct {
-    float angle;    /* posicion sobre el ovalo, en radianes */
-    float speed;    /* radianes por segundo */
-    float x, y;     /* posicion en pantalla, derivada de angle */
-    float heading;  /* hacia donde apunta el auto */
-} Car;
-
-/* Arreglo con los vehiculos que se actualizan y se dibujan en cada cuadro.
- * num_cars indica cuantas posiciones del arreglo estan en uso. */
-static Car cars[MAX_CARS];
-static int num_cars = 1;
-
-/* ---- Actualizacion ----------------------------------------------------- */
-
-/* Calcula la siguiente ubicacion del auto. Avanza su angulo segun el tiempo
- * transcurrido y le pide al modulo de pista la posicion y la orientacion que
- * corresponden a ese angulo. */
-static void update_car(Car *car, float dt)
-{
-    car->angle = track_wrap(car->angle + car->speed * dt);
-
-    Vec2 p = track_point(car->angle, 0.0f);
-    car->x = p.x;
-    car->y = p.y;
-    car->heading = track_heading(car->angle);
-}
 
 /* ---- Dibujo ------------------------------------------------------------ */
 
@@ -84,8 +54,6 @@ static void draw_track(SDL_Renderer *ren)
     for (int i = 0; i < SAMPLES; ++i) {
         float t = 2.0f * (float)M_PI * (float)i / (float)SAMPLES;
 
-        /* Los bordes se obtienen desplazando la linea central medio ancho de
-         * pista hacia cada lado, siguiendo la normal del ovalo. */
         Vec2 inner = track_point(t, -TRACK_W * 0.5f);
         Vec2 outer = track_point(t,  TRACK_W * 0.5f);
 
@@ -113,12 +81,11 @@ static void draw_track(SDL_Renderer *ren)
     SDL_RenderGeometry(ren, NULL, verts, SAMPLES * 2, idx, SAMPLES * 6);
 }
 
-/* Dibuja un auto como un rectangulo rojo orientado en su direccion de avance. */
+/* Dibuja un vehiculo como un rectangulo orientado en su direccion de avance. */
 static void draw_car(SDL_Renderer *ren, const Car *car)
 {
-    const SDL_Color red = { 214, 40, 40, 255 };
     fill_rotated_rect(ren, car->x, car->y,
-                      CAR_LEN * 0.5f, CAR_WID * 0.5f, car->heading, red);
+                      CAR_LEN * 0.5f, CAR_WID * 0.5f, car->heading, car->color);
 }
 
 /* ---- Programa ---------------------------------------------------------- */
@@ -152,14 +119,10 @@ int main(void)
         return 1;
     }
 
-    /* El auto arranca en la parte de abajo del ovalo. La llamada con dt cero
-     * no lo mueve: solo calcula su posicion inicial en pantalla. */
-    cars[0].angle   = (float)M_PI * 0.5f;
-    cars[0].speed   = 0.9f;
-    update_car(&cars[0], 0.0f);
+    car_init_field(1);
 
     /* El contador de alto rendimiento mide cuanto dura cada cuadro, de modo
-     * que el auto avanza a la misma velocidad sin importar los fps. */
+     * que los vehiculos avanzan a la misma velocidad sin importar los fps. */
     Uint64 prev = SDL_GetPerformanceCounter();
     double freq = (double)SDL_GetPerformanceFrequency();
     int running = 1;
@@ -183,7 +146,7 @@ int main(void)
         if (dt > MAX_DT) dt = MAX_DT;
 
         for (int i = 0; i < num_cars; ++i)
-            update_car(&cars[i], dt);
+            car_update(&cars[i], dt);
 
         /* El cuadro se arma de atras hacia adelante: primero el cesped que
          * borra lo anterior, encima la pista y al final los vehiculos. */

@@ -33,6 +33,10 @@
 #define CAR_WID  18.0f
 #define MAX_CARS 16
 
+/* Rapidez a la que un vehiculo recorre el asfalto cuando nada lo limita, en
+ * pixeles por segundo. */
+#define CRUISE_SPEED 320.0f
+
 /* ---- Simulacion -------------------------------------------------------- */
 
 /* Tope del paso de tiempo. Evita saltos grandes cuando la ventana se congela

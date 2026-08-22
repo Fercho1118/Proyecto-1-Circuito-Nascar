@@ -1,0 +1,41 @@
+/*
+ * Estado y avance de los vehiculos.
+ *
+ * Un vehiculo no guarda su posicion como un par de coordenadas sino como una
+ * posicion de pista: el angulo que lleva recorrido sobre el ovalo y el carril
+ * en el que va. Las coordenadas de pantalla se derivan de ese par y solo se
+ * usan para dibujar, lo que permite razonar sobre adelantos y distancias
+ * comparando angulos en lugar de resolver geometria.
+ */
+#ifndef CAR_H
+#define CAR_H
+
+#include <SDL.h>
+
+typedef struct {
+    float angle;    /* posicion sobre el ovalo, en radianes */
+    float lane;     /* desplazamiento lateral respecto a la linea central */
+    float speed;    /* rapidez sobre el asfalto, en pixeles por segundo */
+
+    float x, y;     /* posicion en pantalla, derivada de angle y lane */
+    float heading;  /* orientacion con la que se dibuja el vehiculo */
+
+    SDL_Color color;
+} Car;
+
+/* Arreglo con los vehiculos que se actualizan y se dibujan en cada cuadro.
+ * num_cars indica cuantas posiciones del arreglo estan en uso. */
+extern Car cars[];
+extern int num_cars;
+
+/* Coloca n vehiculos sobre la pista y deja el resto del arreglo sin usar. */
+void car_init_field(int n);
+
+/* Recalcula x, y y heading a partir de la posicion de pista del vehiculo. */
+void car_sync_screen(Car *car);
+
+/* Calcula la siguiente ubicacion del vehiculo avanzandolo sobre la pista
+ * durante dt segundos. */
+void car_update(Car *car, float dt);
+
+#endif /* CAR_H */
