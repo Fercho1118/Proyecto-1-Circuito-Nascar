@@ -13,9 +13,14 @@
 
 #include <SDL.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-int main(void)
+int main(int argc, char **argv)
 {
+    /* El unico argumento opcional es la cantidad de vehiculos, lo que permite
+     * probar la escena con flotas de distinto tamano sin recompilar. */
+    int wanted = (argc > 1) ? atoi(argv[1]) : DEFAULT_CARS;
+
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("SDL_Init: %s\n", SDL_GetError());
         return 1;
@@ -43,7 +48,8 @@ int main(void)
         return 1;
     }
 
-    car_init_field(1);
+    car_init_field(wanted);
+    printf("Vehiculos en pista: %d\n", num_cars);
 
     /* El contador de alto rendimiento mide cuanto dura cada cuadro, de modo
      * que los vehiculos avanzan a la misma velocidad sin importar los fps. */

@@ -21,7 +21,7 @@
 #define TRACK_CY (WIN_H / 2.0f)
 #define TRACK_RX 340.0f
 #define TRACK_RY 200.0f
-#define TRACK_W  70.0f
+#define TRACK_W  130.0f
 
 /* Ancho de los bordes a rayas que delimitan el asfalto. */
 #define KERB_W 8.0f
@@ -34,11 +34,27 @@
 
 #define CAR_LEN  34.0f
 #define CAR_WID  18.0f
-#define MAX_CARS 16
+
+/* Cota superior de la flota. El arreglo de vehiculos se reserva con este
+ * tamano, de modo que la cantidad real se elige al arrancar sin necesidad de
+ * pedir memoria durante la simulacion. */
+#define MAX_CARS     2048
+#define DEFAULT_CARS 48
+
+/* Carriles disponibles. Se reparten simetricamente alrededor de la linea
+ * central, separados por LANE_STEP pixeles. */
+#define NUM_LANES 3
+#define LANE_STEP 37.0f
+
+/* Desplazamiento lateral maximo antes de tocar el muro. Descuenta medio ancho
+ * de vehiculo para que el contacto ocurra con la carroceria y no con el eje. */
+#define LANE_LIMIT (TRACK_W * 0.5f - CAR_WID * 0.5f)
 
 /* Rapidez a la que un vehiculo recorre el asfalto cuando nada lo limita, en
- * pixeles por segundo. */
-#define CRUISE_SPEED 320.0f
+ * pixeles por segundo. Cada vehiculo recibe una variacion sobre este valor
+ * para que la flota no avance en bloque y se produzcan alcances. */
+#define CRUISE_SPEED  320.0f
+#define CRUISE_SPREAD 0.22f
 
 /* ---- Simulacion -------------------------------------------------------- */
 

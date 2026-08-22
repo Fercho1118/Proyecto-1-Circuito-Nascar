@@ -16,6 +16,7 @@ typedef struct {
     float angle;    /* posicion sobre el ovalo, en radianes */
     float lane;     /* desplazamiento lateral respecto a la linea central */
     float speed;    /* rapidez sobre el asfalto, en pixeles por segundo */
+    float cruise;   /* rapidez que el vehiculo busca cuando nada lo limita */
 
     float x, y;     /* posicion en pantalla, derivada de angle y lane */
     float heading;  /* orientacion con la que se dibuja el vehiculo */
