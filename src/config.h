@@ -23,6 +23,9 @@
 #define TRACK_RY 200.0f
 #define TRACK_W  70.0f
 
+/* Ancho de los bordes a rayas que delimitan el asfalto. */
+#define KERB_W 8.0f
+
 /* Muestras usadas para aproximar el ovalo al dibujarlo. Mas muestras dan un
  * contorno mas suave a cambio de mas triangulos por cuadro. */
 #define TRACK_SAMPLES 180
