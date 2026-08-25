@@ -177,8 +177,18 @@ void render_cars(SDL_Renderer *ren)
         SDL_Color roof = { (Uint8)(c->color.r / 3), (Uint8)(c->color.g / 3),
                            (Uint8)(c->color.b / 3), 255 };
 
+        /* Un golpe reciente aclara la carroceria hacia el blanco, con lo que
+         * los choques se alcanzan a ver aunque duren pocos cuadros. */
+        SDL_Color body = c->color;
+        if (c->impact_flash > 0.0f) {
+            float k = c->impact_flash / IMPACT_FLASH_TIME;
+            body.r = (Uint8)(c->color.r + (255 - c->color.r) * k);
+            body.g = (Uint8)(c->color.g + (255 - c->color.g) * k);
+            body.b = (Uint8)(c->color.b + (255 - c->color.b) * k);
+        }
+
         fill_rotated_rect(ren, c->x, c->y, CAR_LEN * 0.5f, CAR_WID * 0.5f,
-                          c->heading, c->color);
+                          c->heading, body);
         fill_rotated_rect(ren, c->x, c->y, CAR_LEN * 0.22f, CAR_WID * 0.32f,
                           c->heading, roof);
     }

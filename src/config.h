@@ -71,6 +71,26 @@
  * empezar a frenar antes de llegar a ella. */
 #define PREVIEW_DIST 150.0f
 
+/* Direccion. El vehiculo corrige hacia el carril que quiere mantener con una
+ * fuerza proporcional a lo lejos que esta de el, y el amortiguamiento evita
+ * que se pase de largo y quede oscilando de un lado a otro. */
+#define STEER_GAIN 7.0f
+#define STEER_DAMP 3.4f
+#define LANE_VEL_MAX 110.0f
+
+/* Que tanto empuja hacia afuera el exceso de rapidez en una curva. Es lo que
+ * hace que un vehiculo que entra demasiado fuerte se abra y termine contra
+ * el muro exterior. */
+#define SLIDE_GAIN 3.2f
+
+/* Choque contra el muro. Se conserva parte de la rapidez lateral en sentido
+ * contrario, que es el rebote, y se pierde parte de la rapidez de avance. */
+#define WALL_RESTITUTION 0.38f
+#define WALL_SPEED_KEEP  0.80f
+
+/* Duracion del destello con el que se marca un golpe, en segundos. */
+#define IMPACT_FLASH_TIME 0.28f
+
 /* ---- Simulacion -------------------------------------------------------- */
 
 /* Tope del paso de tiempo. Evita saltos grandes cuando la ventana se congela

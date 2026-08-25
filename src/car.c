@@ -17,6 +17,15 @@ void car_sync_screen(Car *car)
 
 void car_update(Car *car, float dt)
 {
+    /* El desplazamiento lateral avanza con su propia rapidez. Las reglas de
+     * choque y de adelanto son las que la modifican. */
+    car->lane += car->lane_vel * dt;
+
+    if (car->impact_flash > 0.0f) {
+        car->impact_flash -= dt;
+        if (car->impact_flash < 0.0f) car->impact_flash = 0.0f;
+    }
+
     /* La rapidez esta en pixeles por segundo, pero la posicion se guarda como
      * un angulo. track_scale convierte una de esas unidades en la otra, y es
      * lo que hace que el vehiculo mantenga el mismo ritmo sobre el asfalto
@@ -81,7 +90,10 @@ void car_init_field(int n)
 
         /* La salida arranca en la linea de meta y se extiende hacia atras. */
         c->angle = track_wrap((float)M_PI * 0.5f - (float)row * gap);
-        c->lane  = ((float)lane - (float)(NUM_LANES - 1) * 0.5f) * LANE_STEP;
+        c->lane      = ((float)lane - (float)(NUM_LANES - 1) * 0.5f) * LANE_STEP;
+        c->lane_goal = c->lane;
+        c->lane_vel  = 0.0f;
+        c->impact_flash = 0.0f;
 
         /* Cada vehiculo recibe una rapidez de crucero ligeramente distinta,
          * repartida de forma pareja sobre el rango permitido. */
