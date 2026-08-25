@@ -9,6 +9,7 @@
 
 #include "config.h"
 #include "car.h"
+#include "physics.h"
 #include "render.h"
 
 #include <SDL.h>
@@ -75,8 +76,7 @@ int main(int argc, char **argv)
         prev = now;
         if (dt > MAX_DT) dt = MAX_DT;
 
-        for (int i = 0; i < num_cars; ++i)
-            car_update(&cars[i], dt);
+        physics_step(cars, num_cars, dt);
 
         /* El cuadro se arma de atras hacia adelante: primero el fondo que
          * borra lo anterior, encima la pista y al final los vehiculos. */

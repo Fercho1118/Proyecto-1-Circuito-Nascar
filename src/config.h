@@ -56,6 +56,21 @@
 #define CRUISE_SPEED  320.0f
 #define CRUISE_SPREAD 0.22f
 
+/* ---- Comportamiento ---------------------------------------------------- */
+
+/* Aceleracion lateral que aguanta un vehiculo antes de derrapar, en pixeles
+ * por segundo al cuadrado. Es lo que fija que tan rapido se puede tomar cada
+ * curva: mientras mas alta, mas agarre y mas velocidad en las curvas. */
+#define MAX_LATERAL_ACC 620.0f
+
+/* Cotas de aceleracion y de frenado sobre el eje de avance. */
+#define ACCEL_MAX 260.0f
+#define BRAKE_MAX 540.0f
+
+/* Distancia que el vehiculo mira hacia adelante para anticipar una curva y
+ * empezar a frenar antes de llegar a ella. */
+#define PREVIEW_DIST 150.0f
+
 /* ---- Simulacion -------------------------------------------------------- */
 
 /* Tope del paso de tiempo. Evita saltos grandes cuando la ventana se congela
