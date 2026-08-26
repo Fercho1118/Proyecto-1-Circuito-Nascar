@@ -20,6 +20,8 @@ float physics_speed_limit(float angle, float lane)
     return sqrtf(MAX_LATERAL_ACC * radius);
 }
 
+/* ---- Regla 3: velocidad en curvas -------------------------------------- */
+
 /* Ajusta la rapidez del vehiculo hacia la que le conviene llevar.
  *
  * No basta con mirar el punto donde va: si el vehiculo solo frenara al entrar
@@ -71,9 +73,9 @@ static void steering(Car *car, float dt)
     if (car->lane_vel < -LANE_VEL_MAX) car->lane_vel = -LANE_VEL_MAX;
 }
 
-/* Segunda regla: choque contra el muro.
- *
- * Los muros son los bordes del asfalto, y el vehiculo los toca cuando su
+/* ---- Regla 2: colision contra el muro ---------------------------------- */
+
+/* Los muros son los bordes del asfalto, y el vehiculo los toca cuando su
  * desplazamiento lateral supera lo que permite el ancho de la pista. El
  * vehiculo no los atraviesa: se le devuelve al limite, su rapidez lateral se
  * invierte conservando solo una parte, que es el rebote, y pierde parte de la
@@ -100,16 +102,141 @@ static void wall_collision(Car *car)
     car->impact_flash = IMPACT_FLASH_TIME;
 }
 
+/* ---- Regla 1: colision entre vehiculos --------------------------------- */
+
+/* Lo que un vehiculo decide despues de mirar a todos los demas. Se guarda
+ * aparte del vehiculo mismo porque la exploracion se hace sobre el estado del
+ * cuadro anterior: si cada vehiculo se modificara mientras los demas todavia
+ * lo estan leyendo, el resultado dependeria del orden del recorrido. */
+typedef struct {
+    float bump;   /* cambio inmediato de rapidez por un golpe */
+    float brake;  /* frenado sostenido por venir alcanzando a otro */
+    float steer;  /* hacia donde conviene abrirse para rebasar */
+    float push;   /* empuje lateral para deshacer un encimamiento */
+    int   hit;    /* hubo contacto en este cuadro */
+} Reaction;
+
+static Reaction reactions[MAX_CARS];
+
+/* Separacion sobre el asfalto entre dos vehiculos, en pixeles y con signo.
+ * Es positiva cuando el segundo va adelante del primero. Se obtiene del
+ * angulo que los separa, llevado al rango corto para que dar la vuelta
+ * completa no cuente como estar lejos, y convertido a distancia con la escala
+ * local de la pista. */
+static float gap_ahead(const Car *a, const Car *b)
+{
+    const float TWO_PI = 2.0f * (float)M_PI;
+
+    float da = b->angle - a->angle;
+    if (da >  (float)M_PI) da -= TWO_PI;
+    if (da < -(float)M_PI) da += TWO_PI;
+
+    float scale = 0.5f * (track_scale(a->angle) + track_scale(b->angle));
+    return da * scale;
+}
+
+/* Revisa a un vehiculo contra todos los demas y acumula en r lo que le toca
+ * hacer. Solo lee el estado de la flota; nada de lo que escribe sale de r,
+ * que pertenece unicamente a este vehiculo. */
+static void scan_neighbours(const Car *cars, int n, int i, Reaction *r)
+{
+    const Car *self = &cars[i];
+
+    r->bump = r->brake = r->steer = r->push = 0.0f;
+    r->hit = 0;
+
+    for (int j = 0; j < n; ++j) {
+        if (j == i) continue;
+
+        const Car *other = &cars[j];
+
+        float ds = gap_ahead(self, other);
+        if (fabsf(ds) > LOOKAHEAD) continue;
+
+        float dl = self->lane - other->lane;
+
+        /* Contacto: las dos carrocerias se traslapan a lo largo y a lo ancho. */
+        if (fabsf(ds) < CAR_LEN && fabsf(dl) < CAR_WID) {
+            float rel = self->speed - other->speed;
+
+            /* El que viene mas rapido por detras cede rapidez y el de
+             * adelante la recibe. La expresion es antisimetrica, asi que lo
+             * que uno pierde es lo que el otro gana y la flota no se acelera
+             * ni se frena en conjunto por efecto de los golpes. */
+            if ((ds > 0.0f && rel > 0.0f) || (ds < 0.0f && rel < 0.0f))
+                r->bump -= rel * BUMP_TRANSFER;
+
+            /* Dos vehiculos no pueden ocupar el mismo lugar, asi que se
+             * separan de lado con una fuerza que crece con el traslape. Si
+             * van exactamente al mismo carril el desempate se hace por indice
+             * para que la separacion no dependa del orden del recorrido. */
+            float side = (dl != 0.0f) ? ((dl > 0.0f) ? 1.0f : -1.0f)
+                                      : ((i < j) ? -1.0f : 1.0f);
+            r->push += side * (CAR_WID - fabsf(dl)) * SEPARATION_GAIN;
+            r->hit = 1;
+            continue;
+        }
+
+        /* Sin contacto todavia, pero viene alcanzando a uno mas lento que le
+         * tapa el paso: frena en proporcion a lo cerca que esta y busca un
+         * hueco hacia el lado con mas espacio libre. */
+        if (ds > 0.0f && fabsf(dl) < CAR_WID * 1.15f &&
+            other->speed < self->speed) {
+
+            float closeness = 1.0f - ds / LOOKAHEAD;
+            float closing   = self->speed - other->speed;
+
+            r->brake += closing * closeness * FOLLOW_BRAKE;
+
+            /* Se abre hacia el lado en el que ya viene descentrado respecto
+             * del otro; si van igual de alineados, escoge el lado de la pista
+             * donde le queda mas asfalto. */
+            float side;
+            if (dl != 0.0f)          side = (dl > 0.0f) ? 1.0f : -1.0f;
+            else if (self->lane > 0.0f) side = -1.0f;
+            else                        side =  1.0f;
+
+            r->steer += side * OVERTAKE_STEER * closeness;
+        }
+    }
+}
+
+/* Traslada al vehiculo lo que decidio despues de mirar a sus vecinos. */
+static void apply_reaction(Car *car, const Reaction *r, float dt)
+{
+    car->speed += r->bump;
+    car->speed -= r->brake * dt;
+    if (car->speed < MIN_SPEED) car->speed = MIN_SPEED;
+
+    car->lane_vel += r->push * dt;
+
+    /* El carril buscado se mide desde donde el vehiculo esta ahora, y nunca
+     * apunta fuera del asfalto. */
+    float goal = car->lane + r->steer;
+    if (goal >  LANE_LIMIT) goal =  LANE_LIMIT;
+    if (goal < -LANE_LIMIT) goal = -LANE_LIMIT;
+    car->lane_goal = goal;
+
+    if (r->hit) car->impact_flash = IMPACT_FLASH_TIME;
+}
+
+/* ---- Paso de simulacion ------------------------------------------------ */
+
 void physics_step(Car *cars, int n, float dt)
 {
+    /* La exploracion de vecinos se hace primero y sobre el estado sin tocar,
+     * de modo que todos los vehiculos decidan a partir de la misma foto. */
+    for (int i = 0; i < n; ++i)
+        scan_neighbours(cars, n, i, &reactions[i]);
+
     for (int i = 0; i < n; ++i) {
+        apply_reaction(&cars[i], &reactions[i], dt);
         speed_control(&cars[i], dt);
         steering(&cars[i], dt);
     }
 
-    /* La integracion va en una pasada aparte para que todas las decisiones se
-     * tomen sobre el mismo estado y ningun vehiculo reaccione a posiciones ya
-     * modificadas dentro del mismo cuadro. */
+    /* La integracion va en una pasada aparte para que ningun vehiculo avance
+     * antes de que todos hayan terminado de decidir. */
     for (int i = 0; i < n; ++i) {
         car_update(&cars[i], dt);
         wall_collision(&cars[i]);

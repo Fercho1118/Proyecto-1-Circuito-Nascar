@@ -91,6 +91,26 @@
 /* Duracion del destello con el que se marca un golpe, en segundos. */
 #define IMPACT_FLASH_TIME 0.28f
 
+/* Interaccion entre vehiculos. LOOKAHEAD es la distancia a la que un vehiculo
+ * empieza a tomar en cuenta al que lleva adelante para frenar o intentar
+ * rebasarlo. */
+#define LOOKAHEAD 115.0f
+
+/* Fraccion de la diferencia de rapidez que se transfiere en un golpe entre
+ * dos vehiculos. Con uno el choque seria perfectamente elastico. */
+#define BUMP_TRANSFER 0.55f
+
+/* Fuerza con la que dos vehiculos encimados se separan de lado. */
+#define SEPARATION_GAIN 9.0f
+
+/* Cuanto se abre un vehiculo para intentar un rebase y con que intensidad
+ * frena mientras no consigue el hueco. */
+#define OVERTAKE_STEER 28.0f
+#define FOLLOW_BRAKE   2.4f
+
+/* Piso de rapidez, para que un vehiculo golpeado no quede detenido en pista. */
+#define MIN_SPEED 70.0f
+
 /* ---- Simulacion -------------------------------------------------------- */
 
 /* Tope del paso de tiempo. Evita saltos grandes cuando la ventana se congela
