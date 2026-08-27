@@ -18,9 +18,11 @@
 
 int main(int argc, char **argv)
 {
-    /* El unico argumento opcional es la cantidad de vehiculos, lo que permite
-     * probar la escena con flotas de distinto tamano sin recompilar. */
-    int wanted = (argc > 1) ? atoi(argv[1]) : DEFAULT_CARS;
+    /* Argumentos opcionales: cuantos vehiculos poner en pista y con cuantos
+     * hilos correr la simulacion. Permiten comparar configuraciones sin
+     * recompilar. Sin el segundo, OpenMP decide segun la maquina. */
+    int wanted  = (argc > 1) ? atoi(argv[1]) : DEFAULT_CARS;
+    int threads = (argc > 2) ? atoi(argv[2]) : 0;
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("SDL_Init: %s\n", SDL_GetError());
@@ -49,8 +51,10 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    physics_set_threads(threads);
     car_init_field(wanted);
-    printf("Vehiculos en pista: %d\n", num_cars);
+    printf("Vehiculos en pista: %d   hilos: %d\n",
+           num_cars, physics_thread_count());
 
     /* El contador de alto rendimiento mide cuanto dura cada cuadro, de modo
      * que los vehiculos avanzan a la misma velocidad sin importar los fps. */

@@ -4,6 +4,10 @@
 
 #include <math.h>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 float physics_speed_limit(float angle, float lane)
 {
     /* Un vehiculo que gira describe un arco de radio R. Para no derrapar, la
@@ -222,21 +226,63 @@ static void apply_reaction(Car *car, const Reaction *r, float dt)
 
 /* ---- Paso de simulacion ------------------------------------------------ */
 
+void physics_set_threads(int threads)
+{
+#ifdef _OPENMP
+    if (threads > 0) omp_set_num_threads(threads);
+#else
+    (void)threads;
+#endif
+}
+
+int physics_thread_count(void)
+{
+#ifdef _OPENMP
+    int used = 1;
+    #pragma omp parallel
+    {
+        #pragma omp master
+        used = omp_get_num_threads();
+    }
+    return used;
+#else
+    return 1;
+#endif
+}
+
+/* El paso de simulacion esta partido en tres pasadas y cada una se reparte
+ * entre los hilos por separado. La barrera implicita al final de cada pasada
+ * es lo que garantiza el orden: nadie empieza a decidir hasta que todos
+ * terminaron de mirar, y nadie avanza hasta que todos terminaron de decidir.
+ *
+ * En las tres, la iteracion i escribe unicamente en la posicion i de su
+ * arreglo, asi que dos hilos nunca tocan el mismo dato y no hace falta ningun
+ * candado. El reparto es estatico porque el costo de cada iteracion es
+ * practicamente el mismo: la exploracion recorre siempre a toda la flota.
+ *
+ * El dibujo se queda fuera de todo esto y corre en un solo hilo, porque SDL
+ * no admite que varios hilos usen el mismo renderer. */
 void physics_step(Car *cars, int n, float dt)
 {
-    /* La exploracion de vecinos se hace primero y sobre el estado sin tocar,
-     * de modo que todos los vehiculos decidan a partir de la misma foto. */
+    /* Pasada 1. La parte pesada: cada vehiculo mira a todos los demas, lo que
+     * hace que el trabajo crezca con el cuadrado del tamano de la flota. Solo
+     * lee el estado de los vehiculos y escribe en su propia reaccion. */
+    #pragma omp parallel for schedule(static)
     for (int i = 0; i < n; ++i)
         scan_neighbours(cars, n, i, &reactions[i]);
 
+    /* Pasada 2. Cada vehiculo aplica lo que decidio y ajusta su rapidez y su
+     * direccion, sin volver a consultar a los demas. */
+    #pragma omp parallel for schedule(static)
     for (int i = 0; i < n; ++i) {
         apply_reaction(&cars[i], &reactions[i], dt);
         speed_control(&cars[i], dt);
         steering(&cars[i], dt);
     }
 
-    /* La integracion va en una pasada aparte para que ningun vehiculo avance
-     * antes de que todos hayan terminado de decidir. */
+    /* Pasada 3. Recien aqui los vehiculos se mueven y se resuelve el contacto
+     * con el muro. */
+    #pragma omp parallel for schedule(static)
     for (int i = 0; i < n; ++i) {
         car_update(&cars[i], dt);
         wall_collision(&cars[i]);

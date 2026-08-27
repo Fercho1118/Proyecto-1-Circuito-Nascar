@@ -18,4 +18,12 @@ float physics_speed_limit(float angle, float lane);
 /* Avanza la simulacion completa dt segundos. */
 void physics_step(Car *cars, int n, float dt);
 
+/* Fija cuantos hilos usa la simulacion. Un valor menor que uno deja el que
+ * OpenMP haya elegido segun la maquina. Sin OpenMP la llamada no hace nada. */
+void physics_set_threads(int threads);
+
+/* Cuantos hilos esta usando de verdad la simulacion. Devuelve uno cuando el
+ * programa se compilo sin OpenMP. */
+int physics_thread_count(void);
+
 #endif /* PHYSICS_H */
