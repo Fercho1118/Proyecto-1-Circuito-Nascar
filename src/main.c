@@ -8,6 +8,7 @@
  */
 
 #include "config.h"
+#include "bench.h"
 #include "car.h"
 #include "physics.h"
 #include "render.h"
@@ -16,12 +17,22 @@
 #include <SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int main(int argc, char **argv)
 {
-    /* Argumentos opcionales: cuantos vehiculos poner en pista y con cuantos
-     * hilos correr la simulacion. Permiten comparar configuraciones sin
-     * recompilar. Sin el segundo, OpenMP decide segun la maquina. */
+    /* Con --bench el programa no abre ventana: corre solo la simulacion y
+     * mide como escala al repartirla entre distinta cantidad de hilos. */
+    if (argc > 1 && strcmp(argv[1], "--bench") == 0) {
+        int b_cars   = (argc > 2) ? atoi(argv[2]) : 2000;
+        int b_frames = (argc > 3) ? atoi(argv[3]) : 300;
+        return bench_run(b_cars, b_frames);
+    }
+
+    /* En el modo normal los argumentos opcionales son cuantos vehiculos poner
+     * en pista y con cuantos hilos correr la simulacion. Permiten comparar
+     * configuraciones sin recompilar. Sin el segundo, OpenMP decide segun la
+     * maquina. */
     int wanted  = (argc > 1) ? atoi(argv[1]) : DEFAULT_CARS;
     int threads = (argc > 2) ? atoi(argv[2]) : 0;
 
