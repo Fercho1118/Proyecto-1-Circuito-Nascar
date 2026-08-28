@@ -262,8 +262,17 @@ int physics_thread_count(void)
  *
  * El dibujo se queda fuera de todo esto y corre en un solo hilo, porque SDL
  * no admite que varios hilos usen el mismo renderer. */
+static double last_step_ms = 0.0;
+
+double physics_last_ms(void)
+{
+    return last_step_ms;
+}
+
 void physics_step(Car *cars, int n, float dt)
 {
+    Uint64 t0 = SDL_GetPerformanceCounter();
+
     /* Pasada 1. La parte pesada: cada vehiculo mira a todos los demas, lo que
      * hace que el trabajo crezca con el cuadrado del tamano de la flota. Solo
      * lee el estado de los vehiculos y escribe en su propia reaccion. */
@@ -287,4 +296,8 @@ void physics_step(Car *cars, int n, float dt)
         car_update(&cars[i], dt);
         wall_collision(&cars[i]);
     }
+
+    Uint64 t1 = SDL_GetPerformanceCounter();
+    last_step_ms = 1000.0 * (double)(t1 - t0) /
+                   (double)SDL_GetPerformanceFrequency();
 }

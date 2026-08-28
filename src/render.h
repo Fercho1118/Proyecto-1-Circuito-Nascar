@@ -19,4 +19,9 @@ void render_track(SDL_Renderer *ren);
 /* Dibuja todos los vehiculos que estan en uso. */
 void render_cars(SDL_Renderer *ren);
 
+/* Dibuja el panel con las medidas de la corrida: cuantos vehiculos hay en
+ * pista, con cuantos hilos se esta simulando, a cuantos cuadros por segundo
+ * va el screensaver y cuanto tarda un paso de simulacion. */
+void render_hud(SDL_Renderer *ren, float fps, double sim_ms);
+
 #endif /* RENDER_H */

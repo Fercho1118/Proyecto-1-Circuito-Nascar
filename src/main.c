@@ -11,6 +11,7 @@
 #include "car.h"
 #include "physics.h"
 #include "render.h"
+#include "text.h"
 
 #include <SDL.h>
 #include <stdio.h>
@@ -62,6 +63,10 @@ int main(int argc, char **argv)
     double freq = (double)SDL_GetPerformanceFrequency();
     int running = 1;
 
+    /* Los cuadros por segundo se promedian con un filtro que da mas peso a lo
+     * reciente, para que el numero del panel no salte en cada cuadro. */
+    float fps = 60.0f;
+
     while (running) {
         /* La cola de eventos se vacia en cada cuadro. El screensaver termina
          * al cerrar la ventana o al presionar ESC o Q. */
@@ -80,6 +85,9 @@ int main(int argc, char **argv)
         prev = now;
         if (dt > MAX_DT) dt = MAX_DT;
 
+        if (dt > 0.0f)
+            fps += ((1.0f / dt) - fps) * 0.05f;
+
         physics_step(cars, num_cars, dt);
 
         /* El cuadro se arma de atras hacia adelante: primero el fondo que
@@ -87,6 +95,7 @@ int main(int argc, char **argv)
         render_background(ren);
         render_track(ren);
         render_cars(ren);
+        render_hud(ren, fps, physics_last_ms());
         SDL_RenderPresent(ren);
     }
 

@@ -26,4 +26,9 @@ void physics_set_threads(int threads);
  * programa se compilo sin OpenMP. */
 int physics_thread_count(void);
 
+/* Milisegundos que tardo el ultimo paso de simulacion. Es la medida que
+ * interesa para comparar configuraciones, porque deja fuera el dibujo y la
+ * espera por la sincronizacion vertical. */
+double physics_last_ms(void);
+
 #endif /* PHYSICS_H */

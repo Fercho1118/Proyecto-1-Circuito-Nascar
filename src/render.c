@@ -1,9 +1,12 @@
 #include "render.h"
 #include "car.h"
 #include "config.h"
+#include "physics.h"
+#include "text.h"
 #include "track.h"
 
 #include <math.h>
+#include <stdio.h>
 
 /* Paleta de la escena. */
 static const SDL_Color COL_GRASS   = {  28,  96,  52, 255 };
@@ -192,4 +195,41 @@ void render_cars(SDL_Renderer *ren)
         fill_rotated_rect(ren, c->x, c->y, CAR_LEN * 0.22f, CAR_WID * 0.32f,
                           c->heading, roof);
     }
+}
+
+void render_hud(SDL_Renderer *ren, float fps, double sim_ms)
+{
+    const int scale = 2;
+    const int pad   = 10;
+    const int line  = GLYPH_H * scale + 6;
+    const int rows  = 4;
+
+    char buf[64];
+
+    /* Fondo semitransparente, para que el texto se lea igual de bien sobre el
+     * cesped que sobre el asfalto. */
+    SDL_Rect panel = { pad, pad, 210, rows * line + pad };
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 150);
+    SDL_RenderFillRect(ren, &panel);
+
+    int y = pad + 6;
+
+    snprintf(buf, sizeof(buf), "VEHICULOS: %d", num_cars);
+    text_draw(ren, pad + 8, y, scale, COL_WHITE, buf);
+    y += line;
+
+    snprintf(buf, sizeof(buf), "HILOS: %d", physics_thread_count());
+    text_draw(ren, pad + 8, y, scale, COL_WHITE, buf);
+    y += line;
+
+    snprintf(buf, sizeof(buf), "FPS: %d", (int)(fps + 0.5f));
+    text_draw(ren, pad + 8, y, scale, COL_WHITE, buf);
+    y += line;
+
+    /* El tiempo de simulacion se muestra con dos decimales porque con flotas
+     * pequenas baja de un milisegundo. */
+    snprintf(buf, sizeof(buf), "FISICA: %d.%02d MS",
+             (int)sim_ms, (int)((sim_ms - (int)sim_ms) * 100.0));
+    text_draw(ren, pad + 8, y, scale, COL_WHITE, buf);
 }
