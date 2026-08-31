@@ -16,6 +16,13 @@ Un screensaver que muestra una carrera de Nascar vista desde arriba, con la
 estética de la película *Cars*: un óvalo de asfalto rodeado de césped y un
 pelotón de autos de colores dando vueltas sin parar.
 
+El trazo sigue la forma de un óvalo de Nascar real, que no es una elipse sino
+dos rectas paralelas unidas por dos curvas semicirculares. La diferencia no es
+cosmética: en una elipse la curvatura cambia en todo momento y no existe ningún
+tramo verdaderamente recto, mientras que en un óvalo real la curva es constante
+dentro de cada giro y desaparece por completo en las rectas. Eso es lo que hace
+que aparezca un punto de frenado definido antes de entrar a cada curva.
+
 La gracia no está en que los autos se muevan en círculo, sino en que cada uno
 se comporte como un piloto independiente. Los autos aceleran en las rectas,
 frenan antes de entrar a las curvas, se estorban entre sí, se adelantan y de
@@ -37,15 +44,19 @@ se puede tomar cada punto de la pista:
 v_max = raíz(a_lateral_max · R)
 ```
 
-En el óvalo el radio de curvatura no es constante: es grande en las rectas y
-pequeño en los extremos, así que cada auto tiene un límite distinto según dónde
-vaya. El carril también cuenta, porque la trazada exterior describe una curva
-más abierta y admite más velocidad que la interior.
+En el trazo hay solo dos situaciones. En las rectas la trayectoria no gira, el
+radio es infinito y la fórmula no impone ningún límite: el auto corre a su
+velocidad de crucero. En las curvas el radio es constante e igual al de la
+semicircunferencia, así que el límite es el mismo en todo el giro. El carril
+también cuenta, porque la trazada exterior describe una curva más abierta y
+admite más velocidad que la interior, que es la razón por la que conviene
+abrirse en la curva aunque el recorrido sea más largo.
 
 Además el auto no mira solo el punto donde está: consulta el límite un tramo más
-adelante y se queda con el menor de los dos. Por eso empieza a frenar **antes**
-de entrar a la curva y vuelve a acelerar al salir, en lugar de llegar demasiado
-rápido. El frenado es más agresivo que la aceleración, como en un auto real.
+adelante y se queda con el menor de los dos. Como el límite cae de golpe al
+entrar a la curva, eso produce un punto de frenado bien definido sobre la recta,
+igual que en una carrera real, y el auto vuelve a acelerar al salir. El frenado
+es más agresivo que la aceleración, como en un auto real.
 
 ### 2. Colisión de vehículo contra el muro
 
@@ -74,6 +85,14 @@ por efecto de los golpes.
 Si todavía no hay contacto pero un auto viene alcanzando a otro más lento que le
 tapa el paso, frena en proporción a lo cerca que está y se abre buscando el hueco
 por el lado donde le queda más asfalto. De ahí salen los adelantamientos.
+
+La reacción a los vecinos está acotada por cuadro. Cada contacto por separado
+aporta poco, pero en un amontonamiento un mismo auto puede estar tocando a
+muchos a la vez y la suma se dispara: sin esa cota, el exceso lo lanza más
+rápido todavía contra los siguientes, la realimentación se multiplica cuadro a
+cuadro y la simulación termina desbordando. Con la cota el amontonamiento sigue
+siendo incómodo, que es lo que se quiere, pero se mantiene estable incluso con
+más autos de los que caben en la pista.
 
 ## Dependencias
 
@@ -133,18 +152,23 @@ Vehiculos: 1500   Cuadros: 200   Hilos disponibles: 14
 
  Hilos   Tiempo (s)   ms/cuadro   Aceleracion   Eficiencia
  -----   ----------   ---------   -----------   ----------
-     1        2.813      14.063         1.00x        100%
-     2        1.449       7.244         1.94x         97%
-     4        0.760       3.802         3.70x         92%
-     6        0.542       2.712         5.19x         86%
-     8        0.425       2.124         6.62x         83%
-    12        0.426       2.128         6.61x         55%
+     1        0.793       3.967         1.00x        100%
+     2        0.410       2.052         1.93x         97%
+     4        0.228       1.140         3.48x         87%
+     6        0.167       0.835         4.75x         79%
+     8        0.139       0.695         5.71x         71%
+    12        0.139       0.693         5.72x         48%
 ```
 
 La escalabilidad se sostiene bien hasta 8 hilos y se estanca después. Eso
 coincide con la arquitectura del procesador: los núcleos adicionales son de
 eficiencia, mucho más lentos que los de rendimiento, así que agregarlos ya no
 aporta trabajo útil al mismo ritmo.
+
+La eficiencia cae un poco antes de lo que caería con más trabajo por auto. Es
+esperable: al ser el óvalo un trazo de curvatura constante por tramos, ubicar un
+punto salió mucho más barato que con una elipse, y con menos trabajo dentro de
+cada iteración el costo fijo de coordinar los hilos pesa relativamente más.
 
 ## Qué se paraleliza
 
@@ -188,7 +212,13 @@ Makefile
 ```
 
 Un vehículo no guarda su posición como un par de coordenadas sino como una
-posición de pista: el ángulo recorrido sobre el óvalo y el carril en el que va.
-Las coordenadas de pantalla se derivan de ese par y solo se usan para dibujar.
-Eso es lo que permite razonar sobre adelantamientos y distancias comparando
-ángulos, en lugar de resolver geometría en cada cuadro.
+posición de pista: cuánto lleva recorrido del circuito y en qué carril va. Las
+coordenadas de pantalla se derivan de ese par y solo se usan para dibujar. Eso
+es lo que permite razonar sobre adelantamientos y distancias comparando dos
+números, en lugar de resolver geometría en cada cuadro.
+
+Ese avance se expresa como un ángulo entre cero y una vuelta completa, aunque el
+trazo ya no sea una elipse: no es un ángulo geométrico sino la fracción del
+circuito ya recorrida. Mantener esa interfaz es lo que permitió cambiar la forma
+de la pista tocando únicamente `track.c`, sin modificar la física, el dibujo ni
+el avance de los vehículos.

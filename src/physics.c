@@ -203,6 +203,15 @@ static void scan_neighbours(const Car *cars, int n, int i, Reaction *r)
             r->steer += side * OVERTAKE_STEER * closeness;
         }
     }
+
+    /* Un vehiculo puede estar tocando a muchos a la vez, y aunque cada
+     * contacto aporte poco la suma llega a ser enorme. Acotarla es lo que
+     * impide que un amontonamiento se realimente y desborde la simulacion. */
+    if (r->bump  >  BUMP_MAX)         r->bump  =  BUMP_MAX;
+    if (r->bump  < -BUMP_MAX)         r->bump  = -BUMP_MAX;
+    if (r->push  >  PUSH_MAX)         r->push  =  PUSH_MAX;
+    if (r->push  < -PUSH_MAX)         r->push  = -PUSH_MAX;
+    if (r->brake >  FOLLOW_BRAKE_MAX) r->brake =  FOLLOW_BRAKE_MAX;
 }
 
 /* Traslada al vehiculo lo que decidio despues de mirar a sus vecinos. */
@@ -211,6 +220,7 @@ static void apply_reaction(Car *car, const Reaction *r, float dt)
     car->speed += r->bump;
     car->speed -= r->brake * dt;
     if (car->speed < MIN_SPEED) car->speed = MIN_SPEED;
+    if (car->speed > MAX_SPEED) car->speed = MAX_SPEED;
 
     car->lane_vel += r->push * dt;
 

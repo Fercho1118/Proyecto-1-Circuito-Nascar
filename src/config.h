@@ -15,20 +15,31 @@
 
 /* ---- Pista ------------------------------------------------------------- */
 
-/* La pista es un ovalo centrado en la ventana. Los radios describen la linea
- * central y el ancho se reparte a ambos lados de ella. */
-#define TRACK_CX (WIN_W / 2.0f)
-#define TRACK_CY (WIN_H / 2.0f)
-#define TRACK_RX 340.0f
-#define TRACK_RY 200.0f
-#define TRACK_W  130.0f
+/* La pista sigue el trazo de un ovalo de Nascar: dos rectas paralelas unidas
+ * por dos curvas semicirculares, no una elipse. La diferencia importa, porque
+ * en una elipse la curvatura cambia en todo momento y no existe ningun tramo
+ * verdaderamente recto, mientras que en un ovalo real la curva es constante
+ * dentro de cada giro y desaparece por completo en las rectas.
+ *
+ * TRACK_R es el radio de las dos curvas y TRACK_STRAIGHT el largo de cada
+ * recta, ambos medidos sobre la linea central. */
+#define TRACK_CX       (WIN_W / 2.0f)
+#define TRACK_CY       (WIN_H / 2.0f)
+#define TRACK_R        190.0f
+#define TRACK_STRAIGHT 320.0f
+#define TRACK_W        130.0f
+
+/* Radio que se reporta en las rectas. No es infinito para no arriesgar una
+ * division entre cero, pero es lo bastante grande como para que el limite de
+ * rapidez que sale de el nunca llegue a aplicarse. */
+#define STRAIGHT_RADIUS 1.0e6f
 
 /* Ancho de los bordes a rayas que delimitan el asfalto. */
 #define KERB_W 8.0f
 
 /* Muestras usadas para aproximar el ovalo al dibujarlo. Mas muestras dan un
  * contorno mas suave a cambio de mas triangulos por cuadro. */
-#define TRACK_SAMPLES 180
+#define TRACK_SAMPLES 240
 
 /* ---- Vehiculos --------------------------------------------------------- */
 
@@ -60,8 +71,10 @@
 
 /* Aceleracion lateral que aguanta un vehiculo antes de derrapar, en pixeles
  * por segundo al cuadrado. Es lo que fija que tan rapido se puede tomar cada
- * curva: mientras mas alta, mas agarre y mas velocidad en las curvas. */
-#define MAX_LATERAL_ACC 620.0f
+ * curva: mientras mas alta, mas agarre y mas velocidad en las curvas. El valor
+ * esta ajustado al radio de las curvas del ovalo para que el limite quede por
+ * debajo de la rapidez de crucero y frenar antes de entrar tenga sentido. */
+#define MAX_LATERAL_ACC 330.0f
 
 /* Cotas de aceleracion y de frenado sobre el eje de avance. */
 #define ACCEL_MAX 260.0f
@@ -108,8 +121,23 @@
 #define OVERTAKE_STEER 28.0f
 #define FOLLOW_BRAKE   2.4f
 
-/* Piso de rapidez, para que un vehiculo golpeado no quede detenido en pista. */
-#define MIN_SPEED 70.0f
+/* Piso y techo de rapidez. El piso evita que un vehiculo golpeado quede
+ * detenido en pista y el techo acota lo que puede ganar en un encontronazo. */
+#define MIN_SPEED  70.0f
+#define MAX_SPEED  (CRUISE_SPEED * 1.7f)
+
+/* Cotas de lo que un solo cuadro puede cambiarle a un vehiculo por efecto de
+ * sus vecinos.
+ *
+ * Cada contacto por separado aporta poco, pero en un amontonamiento un mismo
+ * vehiculo puede estar tocando a muchos a la vez y la suma se dispara. Sin
+ * estas cotas ese exceso lo lanza mas rapido todavia contra los siguientes, la
+ * realimentacion se multiplica cuadro a cuadro y la simulacion termina
+ * desbordando. Acotar la reaccion mantiene el amontonamiento incomodo, que es
+ * lo que se quiere, sin que se vuelva inestable. */
+#define BUMP_MAX         120.0f
+#define PUSH_MAX         900.0f
+#define FOLLOW_BRAKE_MAX 900.0f
 
 /* ---- Simulacion -------------------------------------------------------- */
 
