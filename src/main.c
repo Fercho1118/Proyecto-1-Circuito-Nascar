@@ -10,31 +10,29 @@
 #include "config.h"
 #include "bench.h"
 #include "car.h"
+#include "options.h"
 #include "physics.h"
 #include "render.h"
 #include "text.h"
 
 #include <SDL.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 int main(int argc, char **argv)
 {
+    /* Los argumentos se leen y se validan antes de tocar nada. Si algo viene
+     * mal, el programa lo reporta y termina en lugar de arrancar con una
+     * configuracion que el usuario no pidio. */
+    Options opt;
+    OptionsResult parsed = options_parse(argc, argv, &opt);
+
+    if (parsed == OPTIONS_HELP)  return 0;
+    if (parsed != OPTIONS_OK)    return 1;
+
     /* Con --bench el programa no abre ventana: corre solo la simulacion y
      * mide como escala al repartirla entre distinta cantidad de hilos. */
-    if (argc > 1 && strcmp(argv[1], "--bench") == 0) {
-        int b_cars   = (argc > 2) ? atoi(argv[2]) : 2000;
-        int b_frames = (argc > 3) ? atoi(argv[3]) : 300;
-        return bench_run(b_cars, b_frames);
-    }
-
-    /* En el modo normal los argumentos opcionales son cuantos vehiculos poner
-     * en pista y con cuantos hilos correr la simulacion. Permiten comparar
-     * configuraciones sin recompilar. Sin el segundo, OpenMP decide segun la
-     * maquina. */
-    int wanted  = (argc > 1) ? atoi(argv[1]) : DEFAULT_CARS;
-    int threads = (argc > 2) ? atoi(argv[2]) : 0;
+    if (opt.bench)
+        return bench_run(opt.num_cars, opt.bench_frames);
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("SDL_Init: %s\n", SDL_GetError());
@@ -63,8 +61,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    physics_set_threads(threads);
-    car_init_field(wanted);
+    physics_set_threads(opt.threads);
+    car_init_field(opt.num_cars);
     printf("Vehiculos en pista: %d   hilos: %d\n",
            num_cars, physics_thread_count());
 

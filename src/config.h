@@ -52,6 +52,12 @@
 #define MAX_CARS     2048
 #define DEFAULT_CARS 48
 
+/* Cotas de los demas valores que se pueden dar por linea de comandos. Sirven
+ * para rechazar entradas absurdas antes de que lleguen a usarse. */
+#define MAX_THREADS          64
+#define MAX_BENCH_FRAMES     100000
+#define DEFAULT_BENCH_FRAMES 300
+
 /* Carriles disponibles. Se reparten simetricamente alrededor de la linea
  * central, separados por LANE_STEP pixeles. */
 #define NUM_LANES 3
