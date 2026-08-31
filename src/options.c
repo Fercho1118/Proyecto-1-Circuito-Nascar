@@ -25,6 +25,8 @@ void options_usage(const char *program)
            " (por omision %d)\n", MIN_WIN_H, MAX_WIN_H, DEFAULT_WIN_H);
     printf("  -s, --semilla N   semilla de la parrilla, entre 0 y %d"
            " (por omision %d)\n", MAX_SEED, DEFAULT_SEED);
+    printf("      --seq         corre la version secuencial, sin reparto"
+           " entre hilos\n");
     printf("  -h, --ayuda       muestra esta ayuda\n\n");
     printf("Ejemplos:\n");
     printf("  %s                       arranca con la configuracion"
@@ -34,6 +36,7 @@ void options_usage(const char *program)
            " hilos\n", program);
     printf("  %s -n 300 -s 7           otra parrilla, con otros colores\n",
            program);
+    printf("  %s -n 300 --seq          version secuencial\n", program);
     printf("  %s --bench -n 1500       mide el rendimiento\n", program);
 }
 
@@ -88,6 +91,7 @@ OptionsResult options_parse(int argc, char **argv, Options *opt)
      * programa siempre arranca con una configuracion valida. */
     opt->num_cars     = DEFAULT_CARS;
     opt->threads      = 0;
+    opt->sequential   = 0;
     opt->bench        = 0;
     opt->bench_frames = DEFAULT_BENCH_FRAMES;
     opt->win_w        = DEFAULT_WIN_W;
@@ -100,6 +104,12 @@ OptionsResult options_parse(int argc, char **argv, Options *opt)
         if (matches(arg, "-h", "--ayuda") || strcmp(arg, "--help") == 0) {
             options_usage(program);
             return OPTIONS_HELP;
+        }
+
+        if (strcmp(arg, "--seq") == 0 ||
+            strcmp(arg, "--secuencial") == 0) {
+            opt->sequential = 1;
+            continue;
         }
 
         if (strcmp(arg, "--bench") == 0) {

@@ -21,9 +21,24 @@ SRCS := $(wildcard $(SRC_DIR)/*.c)
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 DEPS := $(OBJS:.o=.d)
 
-.PHONY: all run clean
+# Version secuencial: los mismos fuentes compilados sin OpenMP. Las directivas
+# quedan como comentarios para el compilador, de modo que el binario resultante
+# no depende de la libreria de hilos y sirve como referencia limpia contra la
+# cual medir la version paralela.
+SEQ_TARGET  := nascar-seq
+SEQ_OBJ_DIR := build-seq
+SEQ_CFLAGS  := -std=c11 -Wall -Wextra -O2 $(shell sdl2-config --cflags)
+SEQ_LDFLAGS := $(shell sdl2-config --libs) -lm
+SEQ_OBJS := $(patsubst $(SRC_DIR)/%.c,$(SEQ_OBJ_DIR)/%.o,$(SRCS))
+SEQ_DEPS := $(SEQ_OBJS:.o=.d)
+
+.PHONY: all seq both run clean
 
 all: $(TARGET)
+
+seq: $(SEQ_TARGET)
+
+both: all seq
 
 $(TARGET): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
@@ -36,10 +51,20 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
 
+$(SEQ_TARGET): $(SEQ_OBJS)
+	$(CC) $(SEQ_OBJS) -o $@ $(SEQ_LDFLAGS)
+
+$(SEQ_OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(SEQ_OBJ_DIR)
+	$(CC) $(SEQ_CFLAGS) -MMD -MP -c $< -o $@
+
+$(SEQ_OBJ_DIR):
+	mkdir -p $(SEQ_OBJ_DIR)
+
 run: $(TARGET)
 	./$(TARGET)
 
 clean:
-	rm -rf $(OBJ_DIR) $(TARGET)
+	rm -rf $(OBJ_DIR) $(SEQ_OBJ_DIR) $(TARGET) $(SEQ_TARGET)
 
 -include $(DEPS)
+-include $(SEQ_DEPS)

@@ -15,9 +15,10 @@ static const int THREAD_STEPS_LEN =
 /* Corre la simulacion con la cantidad de hilos indicada y devuelve cuantos
  * segundos tardo. Cada corrida vuelve a armar la parrilla, de modo que todas
  * hagan exactamente el mismo trabajo. */
-static double run_once(int threads, int num_vehicles, int frames,
+static double run_once(int parallel, int threads, int num_vehicles, int frames,
                        unsigned int seed)
 {
+    physics_set_parallel(parallel);
     physics_set_threads(threads);
     car_init_field(num_vehicles, seed);
 
@@ -52,27 +53,33 @@ int bench_run(int num_vehicles, int frames, unsigned int seed)
 
     printf("Vehiculos: %d   Cuadros: %d   Hilos disponibles: %d\n\n",
            num_vehicles, frames, available);
-    printf(" Hilos   Tiempo (s)   ms/cuadro   Aceleracion   Eficiencia\n");
-    printf(" -----   ----------   ---------   -----------   ----------\n");
+    printf(" Version      Hilos   Tiempo (s)   ms/cuadro   Aceleracion"
+           "   Eficiencia\n");
+    printf(" ----------   -----   ----------   ---------   -----------"
+           "   ----------\n");
 
-    double base = 0.0;
+    /* La referencia es la version secuencial, no la paralela con un solo hilo.
+     * Esa distincion importa: la corrida de un hilo sigue pasando por el
+     * armado del equipo de trabajo de OpenMP, asi que compararse contra ella
+     * escondaria el costo de introducir el paralelismo. */
+    double base = run_once(0, 1, num_vehicles, frames, seed);
+    printf(" %-10s   %5s   %10.3f   %9.3f   %10s   %10s\n",
+           "secuencial", "-", base, 1000.0 * base / (double)frames, "-", "-");
 
     for (int k = 0; k < THREAD_STEPS_LEN; ++k) {
         int t = THREAD_STEPS[k];
         if (t > available) break;
 
-        double secs = run_once(t, num_vehicles, frames, seed);
+        double secs = run_once(1, t, num_vehicles, frames, seed);
         double ms   = 1000.0 * secs / (double)frames;
 
-        if (k == 0) base = secs;
-
-        /* La aceleracion compara contra la corrida de un solo hilo y la
-         * eficiencia dice que tanto de esa ganancia se sostiene por hilo. */
+        /* La aceleracion compara contra la version secuencial y la eficiencia
+         * dice que tanto de esa ganancia se sostiene por hilo. */
         double speedup = (secs > 0.0) ? base / secs : 0.0;
         double eff     = speedup / (double)t * 100.0;
 
-        printf(" %5d   %10.3f   %9.3f   %10.2fx   %8.0f%%\n",
-               t, secs, ms, speedup, eff);
+        printf(" %-10s   %5d   %10.3f   %9.3f   %10.2fx   %8.0f%%\n",
+               "paralela", t, secs, ms, speedup, eff);
     }
 
     SDL_Quit();

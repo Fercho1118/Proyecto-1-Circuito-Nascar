@@ -236,6 +236,19 @@ static void apply_reaction(Car *car, const Reaction *r, float dt)
 
 /* ---- Paso de simulacion ------------------------------------------------ */
 
+/* Interruptor entre la version secuencial y la paralela. */
+static int g_parallel = 1;
+
+void physics_set_parallel(int enabled)
+{
+    g_parallel = enabled ? 1 : 0;
+}
+
+int physics_is_parallel(void)
+{
+    return g_parallel;
+}
+
 void physics_set_threads(int threads)
 {
 #ifdef _OPENMP
@@ -248,6 +261,8 @@ void physics_set_threads(int threads)
 int physics_thread_count(void)
 {
 #ifdef _OPENMP
+    if (!g_parallel) return 1;
+
     int used = 1;
     #pragma omp parallel
     {
@@ -271,7 +286,12 @@ int physics_thread_count(void)
  * practicamente el mismo: la exploracion recorre siempre a toda la flota.
  *
  * El dibujo se queda fuera de todo esto y corre en un solo hilo, porque SDL
- * no admite que varios hilos usen el mismo renderer. */
+ * no admite que varios hilos usen el mismo renderer.
+ *
+ * La clausula if de cada directiva es la que permite tener las dos versiones
+ * del algoritmo en un mismo binario. Con el reparto apagado, OpenMP no llega a
+ * formar el equipo de trabajo y las tres pasadas se recorren de corrido en el
+ * hilo que las invoco, que es exactamente la version secuencial. */
 static double last_step_ms = 0.0;
 
 double physics_last_ms(void)
@@ -286,13 +306,13 @@ void physics_step(Car *cars, int n, float dt)
     /* Pasada 1. La parte pesada: cada vehiculo mira a todos los demas, lo que
      * hace que el trabajo crezca con el cuadrado del tamano de la flota. Solo
      * lee el estado de los vehiculos y escribe en su propia reaccion. */
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for if (g_parallel) schedule(static)
     for (int i = 0; i < n; ++i)
         scan_neighbours(cars, n, i, &reactions[i]);
 
     /* Pasada 2. Cada vehiculo aplica lo que decidio y ajusta su rapidez y su
      * direccion, sin volver a consultar a los demas. */
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for if (g_parallel) schedule(static)
     for (int i = 0; i < n; ++i) {
         apply_reaction(&cars[i], &reactions[i], dt);
         speed_control(&cars[i], dt);
@@ -301,7 +321,7 @@ void physics_step(Car *cars, int n, float dt)
 
     /* Pasada 3. Recien aqui los vehiculos se mueven y se resuelve el contacto
      * con el muro. */
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for if (g_parallel) schedule(static)
     for (int i = 0; i < n; ++i) {
         car_update(&cars[i], dt);
         wall_collision(&cars[i]);

@@ -20,6 +20,7 @@ typedef enum {
 typedef struct {
     int num_cars;      /* vehiculos a poner en pista */
     int threads;       /* hilos de simulacion; cero deja decidir a OpenMP */
+    int sequential;    /* correr la version secuencial, sin reparto de hilos */
     int bench;         /* correr la medicion en lugar del screensaver */
     int bench_frames;  /* cuadros que dura cada corrida de la medicion */
     int win_w, win_h;  /* tamano de la ventana en pixeles */

@@ -67,10 +67,15 @@ int main(int argc, char **argv)
      * porque la parrilla se reparte sobre la longitud del circuito. */
     track_configure(opt.win_w, opt.win_h);
 
+    /* La bandera --seq deja fuera el reparto entre hilos, con lo que el mismo
+     * binario corre la version secuencial del algoritmo. */
+    physics_set_parallel(!opt.sequential);
     physics_set_threads(opt.threads);
     car_init_field(opt.num_cars, opt.seed);
-    printf("Vehiculos en pista: %d   hilos: %d\n",
-           num_cars, physics_thread_count());
+    printf("Vehiculos en pista: %d   version: %s   hilos: %d\n",
+           num_cars,
+           physics_is_parallel() ? "paralela" : "secuencial",
+           physics_thread_count());
 
     /* El contador de alto rendimiento mide cuanto dura cada cuadro, de modo
      * que los vehiculos avanzan a la misma velocidad sin importar los fps. */

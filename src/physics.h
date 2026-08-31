@@ -18,6 +18,15 @@ float physics_speed_limit(float angle, float lane);
 /* Avanza la simulacion completa dt segundos. */
 void physics_step(Car *cars, int n, float dt);
 
+/* Enciende o apaga el reparto entre hilos. Apagado, el paso de simulacion
+ * recorre la flota en un solo hilo sin llegar a formar un equipo de trabajo,
+ * que es la version secuencial del algoritmo contra la cual se comparan las
+ * corridas paralelas. */
+void physics_set_parallel(int enabled);
+
+/* Indica si el reparto entre hilos esta encendido. */
+int physics_is_parallel(void);
+
 /* Fija cuantos hilos usa la simulacion. Un valor menor que uno deja el que
  * OpenMP haya elegido segun la maquina. Sin OpenMP la llamada no hace nada. */
 void physics_set_threads(int threads);
