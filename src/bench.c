@@ -15,10 +15,11 @@ static const int THREAD_STEPS_LEN =
 /* Corre la simulacion con la cantidad de hilos indicada y devuelve cuantos
  * segundos tardo. Cada corrida vuelve a armar la parrilla, de modo que todas
  * hagan exactamente el mismo trabajo. */
-static double run_once(int threads, int num_vehicles, int frames)
+static double run_once(int threads, int num_vehicles, int frames,
+                       unsigned int seed)
 {
     physics_set_threads(threads);
-    car_init_field(num_vehicles);
+    car_init_field(num_vehicles, seed);
 
     /* Unos cuantos cuadros de calentamiento, para que la medicion no cargue
      * con el costo de levantar los hilos ni con la memoria todavia fria. */
@@ -33,7 +34,7 @@ static double run_once(int threads, int num_vehicles, int frames)
     return (double)(t1 - t0) / (double)SDL_GetPerformanceFrequency();
 }
 
-int bench_run(int num_vehicles, int frames)
+int bench_run(int num_vehicles, int frames, unsigned int seed)
 {
     if (num_vehicles < 1)        num_vehicles = 1;
     if (num_vehicles > MAX_CARS) num_vehicles = MAX_CARS;
@@ -60,7 +61,7 @@ int bench_run(int num_vehicles, int frames)
         int t = THREAD_STEPS[k];
         if (t > available) break;
 
-        double secs = run_once(t, num_vehicles, frames);
+        double secs = run_once(t, num_vehicles, frames, seed);
         double ms   = 1000.0 * secs / (double)frames;
 
         if (k == 0) base = secs;

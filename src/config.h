@@ -10,8 +10,15 @@
 
 /* ---- Ventana ----------------------------------------------------------- */
 
-#define WIN_W 1000
-#define WIN_H 650
+/* Tamano por omision de la ventana. Se puede cambiar por linea de comandos
+ * dentro de las cotas de abajo; el minimo respeta el tamano de canvas que pide
+ * el enunciado del proyecto. */
+#define DEFAULT_WIN_W 1000
+#define DEFAULT_WIN_H 650
+#define MIN_WIN_W     640
+#define MIN_WIN_H     480
+#define MAX_WIN_W     7680
+#define MAX_WIN_H     4320
 
 /* ---- Pista ------------------------------------------------------------- */
 
@@ -22,9 +29,9 @@
  * dentro de cada giro y desaparece por completo en las rectas.
  *
  * TRACK_R es el radio de las dos curvas y TRACK_STRAIGHT el largo de cada
- * recta, ambos medidos sobre la linea central. */
-#define TRACK_CX       (WIN_W / 2.0f)
-#define TRACK_CY       (WIN_H / 2.0f)
+ * recta, ambos medidos sobre la linea central, para el tamano de ventana por
+ * omision. Con otra ventana el trazo se escala en la misma proporcion para
+ * conservar la forma. */
 #define TRACK_R        190.0f
 #define TRACK_STRAIGHT 320.0f
 #define TRACK_W        130.0f
@@ -55,6 +62,8 @@
 /* Cotas de los demas valores que se pueden dar por linea de comandos. Sirven
  * para rechazar entradas absurdas antes de que lleguen a usarse. */
 #define MAX_THREADS          64
+#define MAX_SEED             2147483647
+#define DEFAULT_SEED         2026
 #define MAX_BENCH_FRAMES     100000
 #define DEFAULT_BENCH_FRAMES 300
 

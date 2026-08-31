@@ -18,17 +18,58 @@
  * lo que permite cambiar la forma de la pista sin tocar la fisica, el dibujo
  * ni el avance de los vehiculos. */
 
-#define ARC_TURN   ((float)M_PI * TRACK_R)
-#define ARC_TOTAL  (2.0f * TRACK_STRAIGHT + 2.0f * ARC_TURN)
+/* Medidas del trazo. Dejan de ser constantes de compilacion porque el tamano
+ * de la ventana se elige al arrancar, pero arrancan con los valores que
+ * corresponden a la ventana por omision para que el modulo sea utilizable aun
+ * si nadie llama a track_configure. */
+static float g_cx       = DEFAULT_WIN_W / 2.0f;
+static float g_cy       = DEFAULT_WIN_H / 2.0f;
+static float g_turn_r   = TRACK_R;
+static float g_straight = TRACK_STRAIGHT;
 
-/* Centros de las dos curvas. */
-#define TURN_L_CX (TRACK_CX - TRACK_STRAIGHT * 0.5f)
-#define TURN_R_CX (TRACK_CX + TRACK_STRAIGHT * 0.5f)
+/* Valores derivados de los anteriores. Se recalculan una sola vez al
+ * configurar, en lugar de rehacerlos en cada consulta. */
+static float g_arc_turn   = (float)M_PI * TRACK_R;
+static float g_arc_total  = 2.0f * TRACK_STRAIGHT + 2.0f * (float)M_PI * TRACK_R;
+static float g_arc_offset = 0.0f;
+static float g_scale      = 0.0f;
 
-/* Desplazamiento que hace que el angulo de un cuarto de vuelta, donde el resto
- * del programa coloca la linea de meta y la parrilla de salida, caiga a la
- * mitad de la recta inferior. */
-#define ARC_OFFSET (TRACK_STRAIGHT * 0.5f - ARC_TOTAL * 0.25f)
+/* Rehace los valores derivados a partir del radio y del largo de las rectas. */
+static void recompute(void)
+{
+    g_arc_turn  = (float)M_PI * g_turn_r;
+    g_arc_total = 2.0f * g_straight + 2.0f * g_arc_turn;
+
+    /* Desplazamiento que hace que el angulo de un cuarto de vuelta, donde el
+     * resto del programa coloca la linea de meta y la parrilla de salida,
+     * caiga a la mitad de la recta inferior. */
+    g_arc_offset = g_straight * 0.5f - g_arc_total * 0.25f;
+
+    g_scale = g_arc_total / (2.0f * (float)M_PI);
+}
+
+void track_configure(int win_w, int win_h)
+{
+    g_cx = (float)win_w * 0.5f;
+    g_cy = (float)win_h * 0.5f;
+
+    /* El trazo se escala de forma uniforme segun el eje que quede mas
+     * apretado, con lo que conserva su forma en cualquier ventana. */
+    float sx = (float)win_w / (float)DEFAULT_WIN_W;
+    float sy = (float)win_h / (float)DEFAULT_WIN_H;
+    float s  = (sx < sy) ? sx : sy;
+
+    g_turn_r   = TRACK_R * s;
+    g_straight = TRACK_STRAIGHT * s;
+
+    recompute();
+}
+
+Vec2 track_center(void)
+{
+    Vec2 c = { g_cx, g_cy };
+    return c;
+}
 
 float track_wrap(float angle)
 {
@@ -41,11 +82,13 @@ float track_wrap(float angle)
 /* Longitud de arco recorrida que corresponde a ese angulo. */
 static float arc_of(float angle)
 {
-    float s = track_wrap(angle) * (ARC_TOTAL / (2.0f * (float)M_PI));
+    if (g_arc_offset == 0.0f && g_scale == 0.0f) recompute();
 
-    s += ARC_OFFSET;
-    s = fmodf(s, ARC_TOTAL);
-    if (s < 0.0f) s += ARC_TOTAL;
+    float s = track_wrap(angle) * g_scale;
+
+    s += g_arc_offset;
+    s = fmodf(s, g_arc_total);
+    if (s < 0.0f) s += g_arc_total;
     return s;
 }
 
@@ -53,43 +96,43 @@ static float arc_of(float angle)
  * el vector unitario que apunta en el sentido de avance. */
 static void resolve(float s, Vec2 *pos, Vec2 *dir)
 {
-    if (s < TRACK_STRAIGHT) {
+    if (s < g_straight) {
         /* Recta inferior. Se recorre de derecha a izquierda. */
-        pos->x = TRACK_CX + TRACK_STRAIGHT * 0.5f - s;
-        pos->y = TRACK_CY + TRACK_R;
+        pos->x = g_cx + g_straight * 0.5f - s;
+        pos->y = g_cy + g_turn_r;
         dir->x = -1.0f;
         dir->y =  0.0f;
         return;
     }
-    s -= TRACK_STRAIGHT;
+    s -= g_straight;
 
-    if (s < ARC_TURN) {
+    if (s < g_arc_turn) {
         /* Curva izquierda. El angulo arranca en el extremo inferior y avanza
          * media vuelta hasta el superior, pasando por el punto mas a la
          * izquierda del circuito. */
-        float a = s / TRACK_R;
-        pos->x = TURN_L_CX - TRACK_R * sinf(a);
-        pos->y = TRACK_CY  + TRACK_R * cosf(a);
+        float a = s / g_turn_r;
+        pos->x = (g_cx - g_straight * 0.5f) - g_turn_r * sinf(a);
+        pos->y = g_cy + g_turn_r * cosf(a);
         dir->x = -cosf(a);
         dir->y = -sinf(a);
         return;
     }
-    s -= ARC_TURN;
+    s -= g_arc_turn;
 
-    if (s < TRACK_STRAIGHT) {
+    if (s < g_straight) {
         /* Recta superior. Se recorre de izquierda a derecha. */
-        pos->x = TRACK_CX - TRACK_STRAIGHT * 0.5f + s;
-        pos->y = TRACK_CY - TRACK_R;
+        pos->x = g_cx - g_straight * 0.5f + s;
+        pos->y = g_cy - g_turn_r;
         dir->x = 1.0f;
         dir->y = 0.0f;
         return;
     }
-    s -= TRACK_STRAIGHT;
+    s -= g_straight;
 
     /* Curva derecha, del extremo superior al inferior. */
-    float a = s / TRACK_R;
-    pos->x = TURN_R_CX + TRACK_R * sinf(a);
-    pos->y = TRACK_CY  - TRACK_R * cosf(a);
+    float a = s / g_turn_r;
+    pos->x = (g_cx + g_straight * 0.5f) + g_turn_r * sinf(a);
+    pos->y = g_cy - g_turn_r * cosf(a);
     dir->x = cosf(a);
     dir->y = sinf(a);
 }
@@ -120,7 +163,7 @@ float track_scale(float angle)
     /* El angulo se reparte de forma pareja sobre la longitud del circuito, asi
      * que la conversion entre uno y otra es la misma en todo el trazo. */
     (void)angle;
-    return ARC_TOTAL / (2.0f * (float)M_PI);
+    return g_scale;
 }
 
 float track_radius(float angle)
@@ -131,13 +174,13 @@ float track_radius(float angle)
      * lugar de infinito para que el limite de rapidez que sale de el quede muy
      * por encima de cualquier velocidad alcanzable y no imponga freno alguno,
      * sin arriesgar una division entre cero mas adelante. */
-    if (s < TRACK_STRAIGHT) return STRAIGHT_RADIUS;
+    if (s < g_straight) return STRAIGHT_RADIUS;
 
-    s -= TRACK_STRAIGHT;
-    if (s < ARC_TURN) return TRACK_R;
+    s -= g_straight;
+    if (s < g_arc_turn) return g_turn_r;
 
-    s -= ARC_TURN;
-    if (s < TRACK_STRAIGHT) return STRAIGHT_RADIUS;
+    s -= g_arc_turn;
+    if (s < g_straight) return STRAIGHT_RADIUS;
 
-    return TRACK_R;
+    return g_turn_r;
 }

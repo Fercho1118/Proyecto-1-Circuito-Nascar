@@ -72,7 +72,8 @@ static void fill_infield(SDL_Renderer *ren, float lane)
     SDL_Vertex verts[TRACK_SAMPLES + 1];
     int        idx[TRACK_SAMPLES * 3];
 
-    verts[0] = vertex_at(TRACK_CX, TRACK_CY, COL_INFIELD);
+    Vec2 mid = track_center();
+    verts[0] = vertex_at(mid.x, mid.y, COL_INFIELD);
     for (int i = 0; i < S; ++i) {
         float t = 2.0f * (float)M_PI * (float)i / (float)S;
         Vec2 p = track_point(t, lane);

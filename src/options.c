@@ -19,6 +19,12 @@ void options_usage(const char *program)
     printf("      --bench       mide el rendimiento sin abrir ventana\n");
     printf("      --cuadros N   cuadros por corrida de la medicion, entre 1"
            " y %d (por omision %d)\n", MAX_BENCH_FRAMES, DEFAULT_BENCH_FRAMES);
+    printf("  -w, --ancho N     ancho de la ventana, entre %d y %d"
+           " (por omision %d)\n", MIN_WIN_W, MAX_WIN_W, DEFAULT_WIN_W);
+    printf("  -a, --alto N      alto de la ventana, entre %d y %d"
+           " (por omision %d)\n", MIN_WIN_H, MAX_WIN_H, DEFAULT_WIN_H);
+    printf("  -s, --semilla N   semilla de la parrilla, entre 0 y %d"
+           " (por omision %d)\n", MAX_SEED, DEFAULT_SEED);
     printf("  -h, --ayuda       muestra esta ayuda\n\n");
     printf("Ejemplos:\n");
     printf("  %s                       arranca con la configuracion"
@@ -26,6 +32,8 @@ void options_usage(const char *program)
     printf("  %s -n 300                trescientos vehiculos\n", program);
     printf("  %s -n 300 -t 4           trescientos vehiculos con cuatro"
            " hilos\n", program);
+    printf("  %s -n 300 -s 7           otra parrilla, con otros colores\n",
+           program);
     printf("  %s --bench -n 1500       mide el rendimiento\n", program);
 }
 
@@ -82,6 +90,9 @@ OptionsResult options_parse(int argc, char **argv, Options *opt)
     opt->threads      = 0;
     opt->bench        = 0;
     opt->bench_frames = DEFAULT_BENCH_FRAMES;
+    opt->win_w        = DEFAULT_WIN_W;
+    opt->win_h        = DEFAULT_WIN_H;
+    opt->seed         = DEFAULT_SEED;
 
     for (int i = 1; i < argc; ++i) {
         const char *arg = argv[i];
@@ -115,6 +126,38 @@ OptionsResult options_parse(int argc, char **argv, Options *opt)
             }
             if (!read_int(argv[++i], arg, 1, MAX_THREADS, &opt->threads))
                 return OPTIONS_ERROR;
+            continue;
+        }
+
+        if (matches(arg, "-w", "--ancho")) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: %s necesita un valor.\n", arg);
+                return OPTIONS_ERROR;
+            }
+            if (!read_int(argv[++i], arg, MIN_WIN_W, MAX_WIN_W, &opt->win_w))
+                return OPTIONS_ERROR;
+            continue;
+        }
+
+        if (matches(arg, "-a", "--alto")) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: %s necesita un valor.\n", arg);
+                return OPTIONS_ERROR;
+            }
+            if (!read_int(argv[++i], arg, MIN_WIN_H, MAX_WIN_H, &opt->win_h))
+                return OPTIONS_ERROR;
+            continue;
+        }
+
+        if (matches(arg, "-s", "--semilla")) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: %s necesita un valor.\n", arg);
+                return OPTIONS_ERROR;
+            }
+            int value;
+            if (!read_int(argv[++i], arg, 0, MAX_SEED, &value))
+                return OPTIONS_ERROR;
+            opt->seed = (unsigned int)value;
             continue;
         }
 

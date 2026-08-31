@@ -11,6 +11,7 @@
 #include "bench.h"
 #include "car.h"
 #include "options.h"
+#include "track.h"
 #include "physics.h"
 #include "render.h"
 #include "text.h"
@@ -32,7 +33,7 @@ int main(int argc, char **argv)
     /* Con --bench el programa no abre ventana: corre solo la simulacion y
      * mide como escala al repartirla entre distinta cantidad de hilos. */
     if (opt.bench)
-        return bench_run(opt.num_cars, opt.bench_frames);
+        return bench_run(opt.num_cars, opt.bench_frames, opt.seed);
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("SDL_Init: %s\n", SDL_GetError());
@@ -42,7 +43,8 @@ int main(int argc, char **argv)
     SDL_Window *win = SDL_CreateWindow("Circuito de Nascar",
                                        SDL_WINDOWPOS_CENTERED,
                                        SDL_WINDOWPOS_CENTERED,
-                                       WIN_W, WIN_H, SDL_WINDOW_SHOWN);
+                                       opt.win_w, opt.win_h,
+                                       SDL_WINDOW_SHOWN);
     if (!win) {
         printf("SDL_CreateWindow: %s\n", SDL_GetError());
         SDL_Quit();
@@ -61,8 +63,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    /* El trazo se ajusta al tamano de la ventana antes de colocar la flota,
+     * porque la parrilla se reparte sobre la longitud del circuito. */
+    track_configure(opt.win_w, opt.win_h);
+
     physics_set_threads(opt.threads);
-    car_init_field(opt.num_cars);
+    car_init_field(opt.num_cars, opt.seed);
     printf("Vehiculos en pista: %d   hilos: %d\n",
            num_cars, physics_thread_count());
 

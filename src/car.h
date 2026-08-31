@@ -35,8 +35,11 @@ typedef struct {
 extern Car cars[];
 extern int num_cars;
 
-/* Coloca n vehiculos sobre la pista y deja el resto del arreglo sin usar. */
-void car_init_field(int n);
+/* Coloca n vehiculos sobre la pista y deja el resto del arreglo sin usar. La
+ * semilla decide los colores y las diferencias de ritmo entre ellos: con la
+ * misma semilla la parrilla sale identica, lo que hace repetibles tanto la
+ * escena como las mediciones. */
+void car_init_field(int n, unsigned int seed);
 
 /* Recalcula x, y y heading a partir de la posicion de pista del vehiculo. */
 void car_sync_screen(Car *car);

@@ -11,6 +11,6 @@
 
 /* Corre la medicion e imprime la tabla de resultados. Devuelve cero si todo
  * salio bien. */
-int bench_run(int num_vehicles, int frames);
+int bench_run(int num_vehicles, int frames, unsigned int seed);
 
 #endif /* BENCH_H */

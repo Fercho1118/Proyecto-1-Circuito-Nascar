@@ -14,6 +14,15 @@ typedef struct {
     float x, y;
 } Vec2;
 
+/* Ajusta el trazo al tamano de la ventana. El circuito conserva su forma y se
+ * escala de manera uniforme para caber con holgura. Debe llamarse antes de
+ * usar cualquier otra funcion del modulo; mientras no se llame, el trazo tiene
+ * las medidas que corresponden a la ventana por omision. */
+void track_configure(int win_w, int win_h);
+
+/* Centro geometrico del circuito, en coordenadas de pantalla. */
+Vec2 track_center(void);
+
 /* Devuelve el angulo equivalente dentro del rango [0, 2*pi). */
 float track_wrap(float angle);
 

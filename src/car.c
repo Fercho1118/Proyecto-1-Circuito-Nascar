@@ -36,14 +36,35 @@ void car_update(Car *car, float dt)
     car_sync_screen(car);
 }
 
-/* Reparte los colores sobre el circulo cromatico para que dos vehiculos
- * vecinos en el arreglo nunca queden del mismo tono. La saturacion alta y el
- * brillo parejo mantienen la paleta legible sobre el asfalto oscuro. */
-static SDL_Color car_color(int i)
+/* Mezcla un entero para repartir sus bits.
+ *
+ * Es la parte que aporta el azar: a partir del indice del vehiculo y de la
+ * semilla produce un valor sin patron aparente, pero siempre el mismo para las
+ * mismas entradas. Eso deja la parrilla repetible, que es lo que permite
+ * comparar mediciones entre corridas. */
+static unsigned int scramble(unsigned int x)
 {
-    /* El paso irracional evita que la secuencia de tonos se repita en ciclos
-     * cortos cuando la flota es grande. */
-    float h = fmodf((float)i * 0.61803399f, 1.0f) * 6.0f;
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return x;
+}
+
+/* Devuelve un valor pseudoaleatorio entre cero y uno. */
+static float random_unit(unsigned int i, unsigned int seed, unsigned int salt)
+{
+    unsigned int v = scramble(i * 0x9e3779b9u + seed + salt * 0x85ebca6bu);
+    return (float)(v >> 8) / (float)(1u << 24);
+}
+
+/* Elige el color de un vehiculo. El tono sale del sorteo y la saturacion y el
+ * brillo se mantienen altos, de modo que la paleta salga variada pero siempre
+ * legible sobre el asfalto oscuro. */
+static SDL_Color car_color(int i, unsigned int seed)
+{
+    float h = random_unit((unsigned int)i, seed, 1u) * 6.0f;
     int   sector = (int)h;
     float f = h - (float)sector;
 
@@ -66,7 +87,7 @@ static SDL_Color car_color(int i)
     return c;
 }
 
-void car_init_field(int n)
+void car_init_field(int n, unsigned int seed)
 {
     if (n < 1)        n = 1;
     if (n > MAX_CARS) n = MAX_CARS;
@@ -95,13 +116,14 @@ void car_init_field(int n)
         c->lane_vel  = 0.0f;
         c->impact_flash = 0.0f;
 
-        /* Cada vehiculo recibe una rapidez de crucero ligeramente distinta,
-         * repartida de forma pareja sobre el rango permitido. */
-        float t = (n > 1) ? (float)i / (float)(n - 1) : 0.5f;
+        /* Cada vehiculo recibe una rapidez de crucero propia, sorteada dentro
+         * del rango permitido. Esa diferencia es la que hace que unos alcancen
+         * a otros en lugar de que la flota avance en bloque. */
+        float t = random_unit((unsigned int)i, seed, 2u);
         c->cruise = CRUISE_SPEED * (1.0f - CRUISE_SPREAD * 0.5f
                                         + CRUISE_SPREAD * t);
         c->speed  = c->cruise;
-        c->color  = car_color(i);
+        c->color  = car_color(i, seed);
 
         car_sync_screen(c);
     }
