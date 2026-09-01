@@ -118,57 +118,127 @@ make
 ./nascar
 ```
 
-O en un solo paso, `make run`. El screensaver se cierra con `ESC`, con `Q` o
-cerrando la ventana.
+El screensaver se cierra con `ESC`, con `Q` o cerrando la ventana.
 
-El ejecutable acepta dos argumentos opcionales:
+### Opciones
+
+Todos los parámetros se leen de la línea de comandos; no hay valores fijados en
+el código que haya que recompilar para cambiar.
+
+| Opción | Qué hace | Rango | Por omisión |
+|---|---|---|---|
+| `-n`, `--autos N` | vehículos en pista | 1 – 2048 | 48 |
+| `-t`, `--hilos N` | hilos de simulación | 1 – 64 | los que elija OpenMP |
+| `-w`, `--ancho N` | ancho de la ventana | 640 – 7680 | 1000 |
+| `-a`, `--alto N` | alto de la ventana | 480 – 4320 | 650 |
+| `-s`, `--semilla N` | semilla de la parrilla | 0 – 2147483647 | 2026 |
+| `--seq` | corre la versión secuencial | — | apagado |
+| `--bench` | mide el rendimiento, sin ventana | — | apagado |
+| `--cuadros N` | cuadros por corrida de medición | 1 – 100000 | 300 |
+| `--repite N` | repeticiones de cada configuración | 1 – 1000 | 10 |
+| `-h`, `--ayuda` | muestra la ayuda | — | — |
 
 ```sh
-./nascar                # 48 autos, los hilos que decida OpenMP
-./nascar 200            # 200 autos
-./nascar 200 4          # 200 autos, forzando 4 hilos
+./nascar -n 300               # trescientos vehículos
+./nascar -n 300 -t 4          # forzando cuatro hilos
+./nascar -n 300 -s 7          # otra parrilla, otros colores
+./nascar -w 1600 -a 900       # en una ventana más grande
+./nascar -n 300 --seq         # versión secuencial
 ```
 
 El panel de la esquina muestra cuántos autos hay en pista, con cuántos hilos se
 está simulando, los cuadros por segundo y cuánto tarda un paso de simulación.
 
-## Medición de rendimiento
+### Programación defensiva
 
-Con `--bench` el programa no abre ventana: corre solo la simulación y repite la
-misma cantidad de cuadros con distinta cantidad de hilos.
+Todo argumento pasa por validación antes de usarse. La conversión se hace con
+`strtol` y se verifica que no haya sobrado texto, de modo que `12abc` o `hola`
+no se acepten como números —cosa que `atoi` sí haría, devolviendo cero en
+silencio—, que el valor esté dentro de su rango, y que las opciones que llevan
+valor efectivamente lo traigan. Cualquier problema se reporta diciendo cuál fue
+y el programa termina con código distinto de cero.
+
+```
+$ ./nascar -n abc
+Error: el valor de -n debe ser un numero entero, y se recibio "abc".
+
+$ ./nascar -n 99999
+Error: el valor de -n debe estar entre 1 y 2048, y se recibio "99999".
+
+$ ./nascar --pista 5
+Error: opcion desconocida "--pista".
+```
+
+## Versión secuencial y versión paralela
+
+El proyecto produce dos ejecutables a partir de los mismos fuentes:
 
 ```sh
-./nascar --bench 1500 200      # 1500 autos, 200 cuadros por configuración
+make        # nascar      — versión paralela, con OpenMP
+make seq    # nascar-seq  — versión secuencial, compilada sin OpenMP
+make both   # ambos
+```
+
+En `nascar-seq` las directivas `#pragma omp` quedan como comentarios para el
+compilador y el binario ni siquiera depende de la librería de hilos.
+
+Además, el binario paralelo trae la bandera `--seq`, que apaga el reparto
+mediante la cláusula `if` de las directivas: OpenMP no llega a formar el equipo
+de trabajo y las tres pasadas se recorren de corrido en el hilo que las invocó.
+
+Esa distinción importa para medir. Correr la versión paralela con un solo hilo
+**no** es lo mismo que la versión secuencial: sigue pagando el armado del equipo
+de trabajo. Por eso la medición toma como referencia la versión secuencial y
+deja la fila de un hilo como dato aparte, precisamente para poder ver cuánto
+cuesta introducir el paralelismo por sí mismo. En la práctica ese costo resulta
+ser cerca del 1%.
+
+## Medición de rendimiento
+
+Con `--bench` el programa no abre ventana: corre solo la simulación y repite
+cada configuración varias veces.
+
+```sh
+./nascar --bench -n 1200 --cuadros 150 --repite 10
 ```
 
 Dejar el dibujo fuera es lo que hace útiles los números. Con ventana, la
 sincronización vertical amarra el ciclo a la tasa de refresco del monitor y
 esconde cualquier diferencia entre configuraciones.
 
+Cada configuración se mide diez veces porque una sola corrida no distingue una
+mejora real del ruido de la máquina: el sistema operativo reparte el procesador
+entre otros procesos y dos corridas iguales rara vez tardan lo mismo. Se reporta
+el promedio, su desviación y la corrida más rápida.
+
 Resultado en una MacBook Pro con Apple Silicon (14 hilos disponibles):
 
 ```
-Vehiculos: 1500   Cuadros: 200   Hilos disponibles: 14
+Vehiculos: 1200   Cuadros por corrida: 150   Repeticiones: 10   Hilos disponibles: 14
 
- Hilos   Tiempo (s)   ms/cuadro   Aceleracion   Eficiencia
- -----   ----------   ---------   -----------   ----------
-     1        0.793       3.967         1.00x        100%
-     2        0.410       2.052         1.93x         97%
-     4        0.228       1.140         3.48x         87%
-     6        0.167       0.835         4.75x         79%
-     8        0.139       0.695         5.71x         71%
-    12        0.139       0.693         5.72x         48%
+ Version      Hilos   Media (s)   Desv (s)    Mejor (s)   ms/cuadro   Aceleracion   Eficiencia
+ ----------   -----   ---------   ---------   ---------   ---------   -----------   ----------
+ secuencial       -      0.4034      0.0027      0.4000       2.689             -            -
+ paralela         1      0.4075      0.0044      0.4006       2.717         0.99x          99%
+ paralela         2      0.2116      0.0015      0.2103       1.411         1.91x          95%
+ paralela         4      0.1145      0.0011      0.1137       0.763         3.52x          88%
+ paralela         6      0.0826      0.0005      0.0817       0.551         4.88x          81%
+ paralela         8      0.0707      0.0011      0.0687       0.471         5.70x          71%
+ paralela        12      0.0761      0.0005      0.0756       0.507         5.30x          44%
 ```
+
+Tres cosas que se leen ahí:
+
+La desviación es de menos del 1% del promedio en todas las filas, así que las
+diferencias entre configuraciones son reales y no ruido.
 
 La escalabilidad se sostiene bien hasta 8 hilos y se estanca después. Eso
 coincide con la arquitectura del procesador: los núcleos adicionales son de
 eficiencia, mucho más lentos que los de rendimiento, así que agregarlos ya no
-aporta trabajo útil al mismo ritmo.
+aporta trabajo útil al mismo ritmo. Con 12 hilos el tiempo incluso empeora.
 
-La eficiencia cae un poco antes de lo que caería con más trabajo por auto. Es
-esperable: al ser el óvalo un trazo de curvatura constante por tramos, ubicar un
-punto salió mucho más barato que con una elipse, y con menos trabajo dentro de
-cada iteración el costo fijo de coordinar los hilos pesa relativamente más.
+La fila de un hilo tarda apenas 1% más que la versión secuencial, lo que dice
+que el costo de introducir OpenMP es despreciable frente a lo que se gana.
 
 ## Qué se paraleliza
 
@@ -200,14 +270,15 @@ varios hilos usen el mismo renderer.
 
 ```
 src/
-  main.c      ciclo principal, ventana y eventos
-  config.h    todas las constantes de la escena y del comportamiento
-  track.h/.c  geometría del óvalo: posición, orientación y curvatura
-  car.h/.c    estado de los vehículos y su avance sobre la pista
+  main.c        ciclo principal, ventana y eventos
+  config.h      constantes y cotas de validación
+  options.h/.c  lectura y validación de los argumentos
+  track.h/.c    geometría del óvalo: posición, orientación y curvatura
+  car.h/.c      estado de los vehículos y su avance sobre la pista
   physics.h/.c  las tres reglas y el paso de simulación paralelo
-  render.h/.c dibujo de la pista, los vehículos y el panel
-  text.h/.c   fuente de mapa de bits para el panel
-  bench.h/.c  medición de rendimiento sin ventana
+  render.h/.c   dibujo de la pista, los vehículos y el panel
+  text.h/.c     fuente de mapa de bits para el panel
+  bench.h/.c    medición de rendimiento sin ventana
 Makefile
 ```
 
