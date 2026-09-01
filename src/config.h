@@ -67,6 +67,13 @@
 #define MAX_BENCH_FRAMES     100000
 #define DEFAULT_BENCH_FRAMES 300
 
+/* Repeticiones de cada configuracion en la medicion. Una sola corrida no dice
+ * mucho: el sistema operativo reparte el procesador entre otros procesos y dos
+ * corridas iguales rara vez tardan lo mismo. Repetir y reportar promedio y
+ * dispersion es lo que permite afirmar que una diferencia es real. */
+#define MAX_BENCH_REPEATS     1000
+#define DEFAULT_BENCH_REPEATS 10
+
 /* Carriles disponibles. Se reparten simetricamente alrededor de la linea
  * central, separados por LANE_STEP pixeles. */
 #define NUM_LANES 3

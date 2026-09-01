@@ -33,7 +33,8 @@ int main(int argc, char **argv)
     /* Con --bench el programa no abre ventana: corre solo la simulacion y
      * mide como escala al repartirla entre distinta cantidad de hilos. */
     if (opt.bench)
-        return bench_run(opt.num_cars, opt.bench_frames, opt.seed);
+        return bench_run(opt.num_cars, opt.bench_frames, opt.seed,
+                         opt.bench_repeats);
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("SDL_Init: %s\n", SDL_GetError());

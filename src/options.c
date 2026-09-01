@@ -25,6 +25,9 @@ void options_usage(const char *program)
            " (por omision %d)\n", MIN_WIN_H, MAX_WIN_H, DEFAULT_WIN_H);
     printf("  -s, --semilla N   semilla de la parrilla, entre 0 y %d"
            " (por omision %d)\n", MAX_SEED, DEFAULT_SEED);
+    printf("      --repite N    repeticiones de cada configuracion medida,"
+           " entre 1 y %d (por omision %d)\n",
+           MAX_BENCH_REPEATS, DEFAULT_BENCH_REPEATS);
     printf("      --seq         corre la version secuencial, sin reparto"
            " entre hilos\n");
     printf("  -h, --ayuda       muestra esta ayuda\n\n");
@@ -93,7 +96,8 @@ OptionsResult options_parse(int argc, char **argv, Options *opt)
     opt->threads      = 0;
     opt->sequential   = 0;
     opt->bench        = 0;
-    opt->bench_frames = DEFAULT_BENCH_FRAMES;
+    opt->bench_frames  = DEFAULT_BENCH_FRAMES;
+    opt->bench_repeats = DEFAULT_BENCH_REPEATS;
     opt->win_w        = DEFAULT_WIN_W;
     opt->win_h        = DEFAULT_WIN_H;
     opt->seed         = DEFAULT_SEED;
@@ -168,6 +172,17 @@ OptionsResult options_parse(int argc, char **argv, Options *opt)
             if (!read_int(argv[++i], arg, 0, MAX_SEED, &value))
                 return OPTIONS_ERROR;
             opt->seed = (unsigned int)value;
+            continue;
+        }
+
+        if (matches(arg, NULL, "--repite")) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Error: %s necesita un valor.\n", arg);
+                return OPTIONS_ERROR;
+            }
+            if (!read_int(argv[++i], arg, 1, MAX_BENCH_REPEATS,
+                          &opt->bench_repeats))
+                return OPTIONS_ERROR;
             continue;
         }
 

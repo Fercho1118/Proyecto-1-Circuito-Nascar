@@ -23,6 +23,7 @@ typedef struct {
     int sequential;    /* correr la version secuencial, sin reparto de hilos */
     int bench;         /* correr la medicion en lugar del screensaver */
     int bench_frames;  /* cuadros que dura cada corrida de la medicion */
+    int bench_repeats; /* veces que se repite cada configuracion medida */
     int win_w, win_h;  /* tamano de la ventana en pixeles */
     unsigned int seed; /* semilla de la parrilla: colores y ritmos */
 } Options;
