@@ -18,6 +18,9 @@ static const SDL_Color COL_WHITE   = { 240, 240, 240, 255 };
 static const SDL_Color COL_BLACK   = {  24,  24,  26, 255 };
 static const SDL_Color COL_LANE    = { 236, 236, 236, 150 };
 static const SDL_Color COL_HUECO   = { 236, 236, 236,   0 };
+static const SDL_Color COL_GRADA   = {  54,  54,  64, 255 };
+static const SDL_Color COL_GRADA_B = { 136, 136, 152, 255 };
+static const SDL_Color COL_ESTRUCT = {  38,  38,  46, 255 };
 static const SDL_Color COL_SOMBRA  = {   0,   0,   0,  90 };
 static const SDL_Color COL_VIDRIO  = { 176, 200, 216, 255 };
 
@@ -91,6 +94,48 @@ static void fill_infield(SDL_Renderer *ren, float lane)
     SDL_RenderGeometry(ren, NULL, verts, S + 1, idx, S * 3);
 }
 
+/* Dibuja las gradas que rodean el circuito.
+ *
+ * Son varios anillos concentricos por fuera del bordillo, cada uno un poco mas
+ * claro que el anterior, que juntos leen como las gradas en escalones de un
+ * estadio vistas desde arriba. Al construirse con la misma rutina que el
+ * asfalto siguen la forma del ovalo por si solas, sin geometria aparte.
+ *
+ * El grosor se escala junto con el trazo para que las gradas sigan cabiendo
+ * en la ventana cuando esta es pequena. */
+static void draw_grandstands(SDL_Renderer *ren)
+{
+    const int TERRAZAS = 5;
+
+    float escala = track_turn_radius() / TRACK_R;
+    float sep    = 3.0f * escala;
+    float alto   = 22.0f * escala;
+    float base   = TRACK_W * 0.5f + KERB_W + sep;
+
+    for (int t = 0; t < TERRAZAS; ++t) {
+        float k  = (float)t / (float)(TERRAZAS - 1);
+        float l0 = base + alto * (float)t / (float)TERRAZAS;
+        float l1 = base + alto * (float)(t + 1) / (float)TERRAZAS;
+
+        SDL_Color c = {
+            (Uint8)(COL_GRADA.r + (COL_GRADA_B.r - COL_GRADA.r) * k),
+            (Uint8)(COL_GRADA.g + (COL_GRADA_B.g - COL_GRADA.g) * k),
+            (Uint8)(COL_GRADA.b + (COL_GRADA_B.b - COL_GRADA.b) * k), 255 };
+
+        /* El mismo tono un poco mas oscuro, alternado a lo largo del anillo,
+         * divide las gradas en sectores como los de un estadio. */
+        SDL_Color d = { (Uint8)(c.r * 0.78f), (Uint8)(c.g * 0.78f),
+                        (Uint8)(c.b * 0.78f), 255 };
+
+        fill_ring(ren, l0, l1, c, d, 5);
+    }
+
+    /* Un borde oscuro al final recorta la silueta del estadio contra el
+     * cesped y evita que las terrazas se difuminen en el fondo. */
+    fill_ring(ren, base + alto, base + alto + 1.5f * escala,
+              COL_ESTRUCT, COL_ESTRUCT, 0);
+}
+
 /* Dibuja la linea de meta como un damero de dos filas que cruza el ancho de
  * la pista en la parte de abajo del ovalo. */
 static void draw_finish_line(SDL_Renderer *ren)
@@ -144,6 +189,8 @@ void render_background(SDL_Renderer *ren)
 void render_track(SDL_Renderer *ren)
 {
     const float half = TRACK_W * 0.5f;
+
+    draw_grandstands(ren);
 
     fill_ring(ren, -half, half, COL_ASPHALT, COL_ASPHALT, 0);
     fill_infield(ren, -half - KERB_W);

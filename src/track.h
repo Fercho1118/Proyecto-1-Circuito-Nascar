@@ -23,6 +23,12 @@ void track_configure(int win_w, int win_h);
 /* Centro geometrico del circuito, en coordenadas de pantalla. */
 Vec2 track_center(void);
 
+/* Medidas del trazo ya escaladas a la ventana: el radio de las dos curvas y el
+ * largo de cada recta, sobre la linea central. El dibujo las necesita para
+ * ubicar elementos del escenario que acompanan a la pista. */
+float track_turn_radius(void);
+float track_straight_len(void);
+
 /* Devuelve el angulo equivalente dentro del rango [0, 2*pi). */
 float track_wrap(float angle);
 

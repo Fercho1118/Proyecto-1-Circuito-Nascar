@@ -71,6 +71,16 @@ Vec2 track_center(void)
     return c;
 }
 
+float track_turn_radius(void)
+{
+    return g_turn_r;
+}
+
+float track_straight_len(void)
+{
+    return g_straight;
+}
+
 float track_wrap(float angle)
 {
     const float TWO_PI = 2.0f * (float)M_PI;
