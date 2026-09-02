@@ -16,6 +16,8 @@ static const SDL_Color COL_KERB_A  = { 198,  40,  40, 255 };
 static const SDL_Color COL_KERB_B  = { 236, 236, 236, 255 };
 static const SDL_Color COL_WHITE   = { 240, 240, 240, 255 };
 static const SDL_Color COL_BLACK   = {  24,  24,  26, 255 };
+static const SDL_Color COL_LANE    = { 236, 236, 236, 150 };
+static const SDL_Color COL_HUECO   = { 236, 236, 236,   0 };
 static const SDL_Color COL_SOMBRA  = {   0,   0,   0,  90 };
 static const SDL_Color COL_VIDRIO  = { 176, 200, 216, 255 };
 
@@ -149,6 +151,15 @@ void render_track(SDL_Renderer *ren)
     /* Los bordes a rayas van pegados al asfalto por fuera y por dentro. */
     fill_ring(ren, -half - KERB_W, -half, COL_KERB_A, COL_KERB_B, 6);
     fill_ring(ren,  half, half + KERB_W, COL_KERB_A, COL_KERB_B, 6);
+
+    /* Lineas discontinuas que separan los tres carriles. El segundo color es
+     * transparente, de modo que el mismo anillo a rayas produce el trazo
+     * cortado sin necesidad de otra rutina. */
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    for (int k = -1; k <= 1; k += 2) {
+        float lane = (float)k * LANE_STEP * 0.5f;
+        fill_ring(ren, lane - 1.0f, lane + 1.0f, COL_LANE, COL_HUECO, 3);
+    }
 
     draw_finish_line(ren);
 }
