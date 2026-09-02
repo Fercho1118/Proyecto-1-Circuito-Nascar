@@ -123,8 +123,11 @@
 #define WALL_RESTITUTION 0.38f
 #define WALL_SPEED_KEEP  0.80f
 
-/* Duracion del destello con el que se marca un golpe, en segundos. */
+/* Duracion del destello con el que se marca un golpe, en segundos, y cuanto
+ * llega a aclarar la carroceria. El tope evita que una flota en contacto
+ * permanente termine dibujada por completo de blanco. */
 #define IMPACT_FLASH_TIME 0.28f
+#define FLASH_MAX         0.65f
 
 /* Interaccion entre vehiculos. LOOKAHEAD es la distancia a la que un vehiculo
  * empieza a tomar en cuenta al que lleva adelante para frenar o intentar

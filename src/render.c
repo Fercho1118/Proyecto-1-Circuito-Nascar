@@ -16,6 +16,8 @@ static const SDL_Color COL_KERB_A  = { 198,  40,  40, 255 };
 static const SDL_Color COL_KERB_B  = { 236, 236, 236, 255 };
 static const SDL_Color COL_WHITE   = { 240, 240, 240, 255 };
 static const SDL_Color COL_BLACK   = {  24,  24,  26, 255 };
+static const SDL_Color COL_SOMBRA  = {   0,   0,   0,  90 };
+static const SDL_Color COL_VIDRIO  = { 176, 200, 216, 255 };
 
 static SDL_Vertex vertex_at(float x, float y, SDL_Color c)
 {
@@ -131,25 +133,6 @@ static void draw_finish_line(SDL_Renderer *ren)
     SDL_RenderGeometry(ren, NULL, verts, n, idx, m);
 }
 
-/* Dibuja un rectangulo relleno girado un angulo. Los cuatro vertices se rotan
- * a mano alrededor del centro y se unen con dos triangulos. */
-static void fill_rotated_rect(SDL_Renderer *ren, float cx, float cy,
-                              float half_len, float half_wid,
-                              float angle, SDL_Color color)
-{
-    float ca = cosf(angle), sa = sinf(angle);
-    float ox[4] = { -half_len,  half_len, half_len, -half_len };
-    float oy[4] = { -half_wid, -half_wid, half_wid,  half_wid };
-
-    SDL_Vertex v[4];
-    for (int i = 0; i < 4; ++i)
-        v[i] = vertex_at(cx + ox[i] * ca - oy[i] * sa,
-                         cy + ox[i] * sa + oy[i] * ca, color);
-
-    const int idx[6] = { 0, 1, 2, 0, 2, 3 };
-    SDL_RenderGeometry(ren, NULL, v, 4, idx, 6);
-}
-
 void render_background(SDL_Renderer *ren)
 {
     SDL_SetRenderDrawColor(ren, COL_GRASS.r, COL_GRASS.g, COL_GRASS.b, 255);
@@ -170,32 +153,83 @@ void render_track(SDL_Renderer *ren)
     draw_finish_line(ren);
 }
 
+/* Agrega al lote un rectangulo girado, descrito en coordenadas propias del
+ * vehiculo: el eje x apunta hacia adelante y el eje y hacia su costado. El
+ * desplazamiento se aplica ya en pantalla, que es lo que permite separar la
+ * sombra de la carroceria sin girarla dos veces. */
+static void push_quad(SDL_Vertex *v, int *idx, int *nv, int *ni,
+                      float cx, float cy, float ca, float sa,
+                      float x0, float y0, float x1, float y1,
+                      float off_x, float off_y, SDL_Color col)
+{
+    const float lx[4] = { x0, x1, x1, x0 };
+    const float ly[4] = { y0, y0, y1, y1 };
+    int base = *nv;
+
+    for (int k = 0; k < 4; ++k) {
+        v[base + k].position.x  = cx + lx[k] * ca - ly[k] * sa + off_x;
+        v[base + k].position.y  = cy + lx[k] * sa + ly[k] * ca + off_y;
+        v[base + k].color       = col;
+        v[base + k].tex_coord.x = 0.0f;
+        v[base + k].tex_coord.y = 0.0f;
+    }
+    *nv = base + 4;
+
+    const int orden[6] = { 0, 1, 2, 0, 2, 3 };
+    for (int k = 0; k < 6; ++k) idx[*ni + k] = base + orden[k];
+    *ni += 6;
+}
+
+/* Dibuja toda la flota.
+ *
+ * Cada vehiculo aporta cuatro piezas: la sombra que lo despega del asfalto, la
+ * carroceria con su color, el techo oscuro y el parabrisas. Las cuatro se
+ * acumulan en un solo par de arreglos y se envian a la GPU con una unica
+ * llamada, en lugar de una por pieza: con flotas grandes la diferencia entre
+ * miles de llamadas y una sola es considerable. Los arreglos son estaticos
+ * para no reservarlos en cada cuadro. */
 void render_cars(SDL_Renderer *ren)
 {
+    static SDL_Vertex verts[MAX_CARS * 16];
+    static int        idx[MAX_CARS * 24];
+    int nv = 0, ni = 0;
+
+    const float HL = CAR_LEN * 0.5f, HW = CAR_WID * 0.5f;
+
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+
     for (int i = 0; i < num_cars; ++i) {
         const Car *c = &cars[i];
+        float ca = cosf(c->heading), sa = sinf(c->heading);
 
-        /* La carroceria lleva el color del vehiculo y encima va un techo mas
-         * oscuro, que da la sensacion de volumen y ayuda a distinguir hacia
-         * donde apunta el auto. */
-        SDL_Color roof = { (Uint8)(c->color.r / 3), (Uint8)(c->color.g / 3),
-                           (Uint8)(c->color.b / 3), 255 };
-
-        /* Un golpe reciente aclara la carroceria hacia el blanco, con lo que
-         * los choques se alcanzan a ver aunque duren pocos cuadros. */
+        /* Un golpe reciente aclara la carroceria, pero solo hasta cierto
+         * punto: si el destello llegara al blanco puro, una flota amontonada
+         * en contacto permanente se dibujaria entera de blanco y se perderian
+         * los colores. */
         SDL_Color body = c->color;
         if (c->impact_flash > 0.0f) {
-            float k = c->impact_flash / IMPACT_FLASH_TIME;
+            float k = (c->impact_flash / IMPACT_FLASH_TIME) * FLASH_MAX;
             body.r = (Uint8)(c->color.r + (255 - c->color.r) * k);
             body.g = (Uint8)(c->color.g + (255 - c->color.g) * k);
             body.b = (Uint8)(c->color.b + (255 - c->color.b) * k);
         }
 
-        fill_rotated_rect(ren, c->x, c->y, CAR_LEN * 0.5f, CAR_WID * 0.5f,
-                          c->heading, body);
-        fill_rotated_rect(ren, c->x, c->y, CAR_LEN * 0.22f, CAR_WID * 0.32f,
-                          c->heading, roof);
+        SDL_Color roof = { (Uint8)(body.r / 3), (Uint8)(body.g / 3),
+                           (Uint8)(body.b / 3), 255 };
+
+        push_quad(verts, idx, &nv, &ni, c->x, c->y, ca, sa,
+                  -HL, -HW, HL, HW, 2.5f, 3.0f, COL_SOMBRA);
+        push_quad(verts, idx, &nv, &ni, c->x, c->y, ca, sa,
+                  -HL, -HW, HL, HW, 0.0f, 0.0f, body);
+        push_quad(verts, idx, &nv, &ni, c->x, c->y, ca, sa,
+                  -HL * 0.62f, -HW * 0.66f, HL * 0.16f, HW * 0.66f,
+                  0.0f, 0.0f, roof);
+        push_quad(verts, idx, &nv, &ni, c->x, c->y, ca, sa,
+                  HL * 0.16f, -HW * 0.54f, HL * 0.52f, HW * 0.54f,
+                  0.0f, 0.0f, COL_VIDRIO);
     }
+
+    if (nv > 0) SDL_RenderGeometry(ren, NULL, verts, nv, idx, ni);
 }
 
 void render_hud(SDL_Renderer *ren, float fps, double sim_ms)
